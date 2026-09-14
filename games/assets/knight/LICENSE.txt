@@ -1,0 +1,4 @@
+Knight character model, sword, club, helmet
+Source: Quaternius - "LowPoly Animated Knight" (https://quaternius.itch.io/lowpoly-animated-knight)
+License: CC0 1.0 Universal (Public Domain) - https://creativecommons.org/publicdomain/zero/1.0/
+No attribution required. Credited here for reference only.
