@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>まんまるコイン</title>
+<style>
+  :root{
+    --wood:#c98a4b; --wood-dark:#8a5a2e; --bg-top:#fdeecb; --bg-bottom:#f7d9a0;
+    --ink:#5a3b22; --accent:#ff7a59;
+  }
+  html,body{ margin:0; padding:0; height:100%; overflow:auto; }
+  body{
+    font-family:'Hiragino Maru Gothic ProN','Hiragino Sans',sans-serif;
+    background:linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    display:flex; align-items:flex-start; justify-content:center;
+    -webkit-user-select:none; user-select:none;
+  }
+  #wrap{ display:flex; flex-direction:column; align-items:center; gap:8px; width:648px; max-width:96vw; padding:10px 0; box-sizing:border-box; }
+  #stage{ position:relative; width:100%; }
+  canvas{ display:block; width:100%; height:auto; touch-action:none; cursor:pointer; }
+
+  #topbar{
+    width:100%; display:flex; align-items:flex-start; justify-content:space-between;
+    padding:0 4px; box-sizing:border-box; color:var(--ink);
+  }
+  #title{ font-size:17px; font-weight:800; letter-spacing:0.05em; }
+  #title span{ color:var(--accent); }
+  #scoreBox{ font-size:12px; text-align:left; margin-top:2px; }
+  #scoreBox b{ font-size:22px; display:block; color:var(--accent); line-height:1.2; }
+  #muteBtn, #pauseBtn{
+    border:none; background:#fff; width:34px; height:34px; border-radius:50%; font-size:15px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.15); cursor:pointer; color:var(--ink); flex-shrink:0;
+  }
+  #muteBtn:active, #pauseBtn:active{ transform:scale(0.94); }
+  #btnGroup{ display:flex; gap:8px; flex-shrink:0; }
+
+  #nextBox{
+    display:flex; flex-direction:column; align-items:center; color:var(--ink); font-size:11px; flex-shrink:0;
+  }
+  #nextIcon{
+    width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:22px; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.15); margin-top:2px;
+  }
+
+  #overlay, #pauseOverlay, #titleOverlay{
+    position:absolute; inset:0; background:rgba(80,50,20,0.55);
+    display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center;
+    color:#fff; padding:20px; box-sizing:border-box;
+  }
+  #overlay.show, #pauseOverlay.show, #titleOverlay.show{ display:flex; }
+  #overlay h2, #pauseOverlay h2, #titleOverlay h2{ margin:0; font-size:30px; letter-spacing:0.1em; }
+  #overlay p, #titleOverlay .tagline{ margin:0; font-size:14px; opacity:0.9; }
+  #overlay button, #pauseOverlay button, #titleOverlay button{
+    margin-top:8px; border:none; border-radius:999px; padding:10px 28px; font-size:14px; font-weight:700;
+    background:var(--accent); color:#fff; cursor:pointer; letter-spacing:0.05em;
+  }
+  #overlay button:active, #pauseOverlay button:active, #titleOverlay button:active{ transform:scale(0.97); }
+  #titleOverlay{ background:linear-gradient(160deg, rgba(60,40,15,0.75), rgba(70,90,75,0.75)); z-index:5; cursor:pointer; }
+  #titleOverlay h2{ font-size:36px; }
+
+  #pauseOverlay .controls{
+    text-align:left; font-size:13px; line-height:2.1; background:rgba(255,255,255,0.1);
+    padding:14px 22px; border-radius:12px;
+  }
+  #pauseOverlay .controls .key{
+    display:inline-block; border:1px solid rgba(255,255,255,0.5); border-radius:4px;
+    padding:0 7px; margin-right:4px; font-size:12px;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="topbar">
+    <div>
+      <div id="title">まんまる<span>コイン</span></div>
+      <div id="scoreBox">ごうけい<b id="scoreVal">¥0</b></div>
+    </div>
+    <div id="nextBox">つぎ<div id="nextIcon"></div></div>
+    <div id="btnGroup">
+      <button id="pauseBtn" title="一時停止">⏸</button>
+      <button id="muteBtn" title="ミュート切替">🔊</button>
+    </div>
+  </div>
+  <div id="stage">
+    <canvas id="c" width="648" height="680"></canvas>
+    <div id="titleOverlay" class="show">
+      <h2>まんまる<span style="color:var(--accent);">コイン</span></h2>
+      <p class="tagline">同じ硬貨を合体させて、大きなお金を目指そう</p>
+      <button id="startBtn">はじめる</button>
+    </div>
+    <div id="overlay">
+      <h2 id="overTitle">GAME OVER</h2>
+      <p id="overScore">ごうけい: ¥0</p>
+      <button id="retryBtn">もう一度あそぶ</button>
+    </div>
+    <div id="pauseOverlay">
+      <h2>ポーズ</h2>
+      <div class="controls">
+        <span class="key">マウス移動</span>/<span class="key">←→</span>/<span class="key">🎮スティック</span> で狙う<br/>
+        <span class="key">クリック</span>/<span class="key">スペース</span>/<span class="key">🎮✕・R1</span> で落とす<br/>
+        同じ硬貨をぶつけて合体!
+      </div>
+      <button id="resumeBtn">再開する</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var FRUITS = [
+    { name:'1円',     r:16,  color:'#c9ccd0', img:'yen1',     score:1 },
+    { name:'5円',     r:22,  color:'#e0b84a', img:'yen5',     score:5 },
+    { name:'10円',    r:29,  color:'#c07a41', img:'yen10',    score:10 },
+    { name:'50円',    r:37,  color:'#c7cbd1', img:'yen50',    score:50 },
+    { name:'100円',   r:46,  color:'#c7cbd1', img:'yen100',   score:100 },
+    { name:'500円',   r:56,  color:'#cbb56a', img:'yen500',   score:500 },
+    { name:'1000円',  r:68,  color:'#c7cbd1', img:'yen1000',  score:1000 },
+    { name:'5000円',  r:82,  color:'#b9b9bd', img:'yen5000',  score:5000 },
+    { name:'10000円', r:98,  color:'#c9a24a', img:'yen10000', score:10000 },
+  ];
+  var MAX_TIER = FRUITS.length - 1;
+  var COIN_BASE = 'assets/coins/';
+  FRUITS.forEach(function(f){
+    f.image = new Image();
+    f.image.src = COIN_BASE + f.img + '.png';
+  });
+
+  var W = 520, H = 680;
+  var WALL = 14;
+  var DANGER_Y = 80;
+  var MARGIN = 64;              // room on each side for the vase's decorative bulge
+  var CW = W + MARGIN*2;        // full canvas width
+  var PL = MARGIN, PR = MARGIN + W; // inner cavity (play area) left/right edges
+
+  var canvas = document.getElementById('c');
+  canvas.width = CW; canvas.height = H;
+  var ctx = canvas.getContext('2d');
+
+  var Engine = Matter.Engine, World = Matter.World, Bodies = Matter.Bodies,
+      Body = Matter.Body, Events = Matter.Events, Composite = Matter.Composite;
+
+  // ---- audio ----
+  var AUDIO_BASE = 'assets/audio/';
+  var bgm = new Audio(AUDIO_BASE+'bgm.ogg'); bgm.loop = true; bgm.volume = 0.28;
+  var sfxDrop = new Audio(AUDIO_BASE+'drop.ogg'); sfxDrop.volume = 0.5;
+  var sfxMerge = new Audio(AUDIO_BASE+'merge.ogg'); sfxMerge.volume = 0.55;
+  var sfxOver = new Audio(AUDIO_BASE+'gameover.ogg'); sfxOver.volume = 0.6;
+  var muted = false;
+  var audioUnlocked = false;
+  function unlockAudio(){
+    if(audioUnlocked) return;
+    audioUnlocked = true;
+    if(!muted) bgm.play().catch(function(){});
+  }
+  function playSfx(base, rate){
+    if(muted) return;
+    var n = base.cloneNode();
+    n.volume = base.volume;
+    n.playbackRate = rate || 1;
+    n.play().catch(function(){});
+  }
+  document.getElementById('muteBtn').addEventListener('click', function(){
+    muted = !muted;
+    this.textContent = muted ? '🔇' : '🔊';
+    if(muted) bgm.pause(); else if(audioUnlocked && !paused) bgm.play().catch(function(){});
+  });
+
+  var paused = false;
+  var pauseOverlayEl = document.getElementById('pauseOverlay');
+  function setPaused(p){
+    if(gameOver) return;
+    paused = p;
+    pauseOverlayEl.classList.toggle('show', paused);
+    if(paused) bgm.pause(); else if(!muted && audioUnlocked) bgm.play().catch(function(){});
+  }
+  document.getElementById('pauseBtn').addEventListener('click', function(){ setPaused(!paused); });
+  document.getElementById('resumeBtn').addEventListener('click', function(){ setPaused(false); });
+  document.addEventListener('keydown', function(e){
+    if((e.code==='KeyP' || e.code==='Escape') && started){ setPaused(!paused); }
+  });
+
+  var started = false;
+  var titleOverlayEl = document.getElementById('titleOverlay');
+  function startGame(){
+    if(started) return;
+    started = true;
+    unlockAudio();
+    titleOverlayEl.classList.remove('show');
+  }
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  titleOverlayEl.addEventListener('click', startGame);
+  document.addEventListener('keydown', function(e){
+    if(!started && (e.code==='Space' || e.code==='Enter')) startGame();
+  });
+
+  var engine, world;
+  var score = 0;
+  var aimX = PL + W/2;
+  var currentTier = 0;
+  var nextTier = 0;
+  var canDrop = true;
+  var gameOver = false;
+  var pendingMerges = [];
+  var idSeq = 1;
+
+  function randTier(){ return Math.floor(Math.random()*5); } // only the 5 smallest ever drop
+
+  function setup(){
+    engine = Engine.create();
+    world = engine.world;
+    engine.gravity.y = 1.0;
+    score = 0;
+    gameOver = false;
+    paused = false;
+    pauseOverlayEl.classList.remove('show');
+    document.getElementById('overlay').classList.remove('show');
+    updateScore();
+
+    var floor = Bodies.rectangle(PL+W/2, H+WALL/2, W, WALL, { isStatic:true, render:{} });
+    floor.friction = 0.4; floor.restitution = 0.05;
+    var walls = [floor];
+    // segmented side walls that follow the gourd waist profile - kept
+    // low-friction so coins slide past the narrow waist instead of
+    // wedging/arching across it (a granular-physics jamming artifact).
+    var segStep = 10;
+    var segThick = 60;
+    for(var sy=0; sy<H; sy+=segStep){
+      var mid = sy + segStep/2;
+      var lx = innerL(mid);
+      var rx = innerR(mid);
+      var segL = Bodies.rectangle(lx - segThick/2, mid, segThick, segStep+1, { isStatic:true, friction:0.02, restitution:0.05 });
+      var segR = Bodies.rectangle(rx + segThick/2, mid, segThick, segStep+1, { isStatic:true, friction:0.02, restitution:0.05 });
+      walls.push(segL, segR);
+    }
+    World.add(world, walls);
+
+    currentTier = randTier();
+    nextTier = randTier();
+    updateNextIcon();
+
+    Events.on(engine, 'collisionStart', onCollision);
+  }
+
+  function formatYen(n){ return '¥' + n.toLocaleString('ja-JP'); }
+  function updateScore(){ document.getElementById('scoreVal').textContent = formatYen(score); }
+  function updateNextIcon(){
+    var el = document.getElementById('nextIcon');
+    el.style.backgroundImage = 'url(' + COIN_BASE + FRUITS[nextTier].img + '.png)';
+    el.style.backgroundSize = 'cover';
+  }
+
+  function makeFruitBody(x, y, tier){
+    var f = FRUITS[tier];
+    var body = Bodies.circle(x, y, f.r, {
+      restitution: 0.15,
+      friction: 0.35,
+      frictionAir: 0.0008,
+      density: 0.0012,
+    });
+    body.tier = tier;
+    body.fruitId = idSeq++;
+    body.settleSince = null;
+    return body;
+  }
+
+  function onCollision(evt){
+    evt.pairs.forEach(function(pair){
+      var a = pair.bodyA, b = pair.bodyB;
+      if(a.tier===undefined || b.tier===undefined) return;
+      if(a.tier !== b.tier) return;
+      if(a.merged || b.merged) return;
+      // dedupe multiple contact points in the same tick
+      var key = Math.min(a.fruitId,b.fruitId)+'-'+Math.max(a.fruitId,b.fruitId);
+      if(pendingMerges.indexOf(key) !== -1) return;
+      pendingMerges.push(key);
+      a.merged = true; b.merged = true;
+      var mx = (a.position.x + b.position.x)/2;
+      var my = (a.position.y + b.position.y)/2;
+      var tier = a.tier;
+      spawnPop(mx, my, FRUITS[tier].color);
+      playSfx(sfxMerge, 0.9 + tier*0.045);
+      World.remove(world, a);
+      World.remove(world, b);
+      if(tier < MAX_TIER){
+        var nb = makeFruitBody(mx, my, tier+1);
+        World.add(world, nb);
+      }
+      score += FRUITS[tier].score * 2; // the actual yen value of the two coins that just combined
+      updateScore();
+    });
+    pendingMerges.length = 0;
+  }
+
+  var pops = [];
+  function spawnPop(x,y,color){
+    pops.push({ x:x, y:y, t:0, color:color });
+  }
+
+  function dropSpawnY(r){ return Math.max(r+6, DANGER_Y*0.4); }
+
+  function dropFruit(){
+    if(!canDrop || gameOver || paused || !started) return;
+    unlockAudio();
+    var f = FRUITS[currentTier];
+    var x = Math.max(PL+WALL+f.r, Math.min(PR-WALL-f.r, aimX));
+    var body = makeFruitBody(x, dropSpawnY(f.r), currentTier);
+    World.add(world, body);
+    playSfx(sfxDrop);
+    canDrop = false;
+    setTimeout(function(){ canDrop = true; }, 380);
+    currentTier = nextTier;
+    nextTier = randTier();
+    updateNextIcon();
+  }
+
+  // ---- input ----
+  var keys = {};
+  canvas.addEventListener('mousemove', function(e){
+    var rect = canvas.getBoundingClientRect();
+    aimX = (e.clientX - rect.left) * (CW/rect.width);
+  });
+  canvas.addEventListener('touchmove', function(e){
+    e.preventDefault();
+    var rect = canvas.getBoundingClientRect();
+    var t = e.touches[0];
+    aimX = (t.clientX - rect.left) * (CW/rect.width);
+  }, { passive:false });
+  canvas.addEventListener('mousedown', dropFruit);
+  canvas.addEventListener('touchstart', function(e){ e.preventDefault(); dropFruit(); }, { passive:false });
+  document.addEventListener('keydown', function(e){
+    if(e.code==='ArrowLeft') keys.left = true;
+    if(e.code==='ArrowRight') keys.right = true;
+    if(e.code==='Space'){ e.preventDefault(); dropFruit(); }
+  });
+  document.addEventListener('keyup', function(e){
+    if(e.code==='ArrowLeft') keys.left = false;
+    if(e.code==='ArrowRight') keys.right = false;
+  });
+
+  document.getElementById('retryBtn').addEventListener('click', function(){
+    Composite.clear(world, false);
+    Events.off(engine, 'collisionStart', onCollision);
+    setup();
+    if(!muted) bgm.play().catch(function(){});
+  });
+
+  // ---- gamepad (PS/Xbox) ----
+  var gamepadIndex = null;
+  var gpDropPrev = false;
+  var gpPausePrev = false;
+  var GP_DEADZONE = 0.18;
+  addEventListener('gamepadconnected', function(e){ gamepadIndex = e.gamepad.index; });
+  addEventListener('gamepaddisconnected', function(e){ if(gamepadIndex === e.gamepad.index) gamepadIndex = null; });
+
+  var gpStartPrev = false;
+  function pollGamepadPause(){
+    if(gamepadIndex === null) return;
+    var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    var gp = pads[gamepadIndex];
+    if(!gp) return;
+    if(!started){
+      var anyPressed = gp.buttons.some(function(b){ return b.pressed; });
+      if(anyPressed && !gpStartPrev) startGame();
+      gpStartPrev = anyPressed;
+      return;
+    }
+    var pauseBtn = !!(gp.buttons[9] && gp.buttons[9].pressed);
+    if(pauseBtn && !gpPausePrev) setPaused(!paused);
+    gpPausePrev = pauseBtn;
+  }
+
+  function pollGamepad(dt){
+    if(gamepadIndex === null) return;
+    var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    var gp = pads[gamepadIndex];
+    if(!gp) return;
+
+    var stick = gp.axes[0] || 0;
+    if(Math.abs(stick) < GP_DEADZONE) stick = 0;
+    var dpadLeft = !!(gp.buttons[14] && gp.buttons[14].pressed);
+    var dpadRight = !!(gp.buttons[15] && gp.buttons[15].pressed);
+    var moveDir = stick + (dpadLeft?-1:0) + (dpadRight?1:0);
+    aimX += moveDir * 460 * dt;
+
+    var dropBtn = !!(gp.buttons[0] && gp.buttons[0].pressed) || !!(gp.buttons[5] && gp.buttons[5].pressed);
+    if(dropBtn && !gpDropPrev) dropFruit();
+    gpDropPrev = dropBtn;
+  }
+
+  function checkGameOver(dt){
+    if(gameOver) return;
+    var bodies = Composite.allBodies(world).filter(function(b){ return b.tier!==undefined; });
+    var overLine = false;
+    bodies.forEach(function(b){
+      var speed = Math.hypot(b.velocity.x, b.velocity.y);
+      var topY = b.position.y - b.circleRadius;
+      if(topY < DANGER_Y && speed < 0.35){
+        if(b.settleSince===null) b.settleSince = performance.now();
+        if(performance.now() - b.settleSince > 250) overLine = true;
+      } else {
+        b.settleSince = null;
+      }
+    });
+    if(overLine){
+      gameOver = true;
+      bgm.pause();
+      playSfx(sfxOver);
+      document.getElementById('overScore').textContent = 'ごうけい: ' + formatYen(score);
+      document.getElementById('overlay').classList.add('show');
+    }
+  }
+
+  // ---- render: elegant rounded vase ----
+  // Keyframes [y, outwardBulge] sketching a vase silhouette: flared lip,
+  // pinched neck, wide belly, tapered foot. Inner cavity stays a straight
+  // rectangle (matching the physics walls) - only the outer clay bulges.
+  var VASE_KEYS = [
+    [0, 6], [12, 30], [55, 2], [110, 14], [300, 58], [430, 58], [590, 6], [H, 0]
+  ];
+  function keyframeLookup(keys, y){
+    for(var i=0;i<keys.length-1;i++){
+      var a = keys[i], b = keys[i+1];
+      if(y>=a[0] && y<=b[0]){
+        var t = (y-a[0])/(b[0]-a[0]||1);
+        var s = t*t*(3-2*t); // smoothstep for a gentle curve
+        return a[1] + (b[1]-a[1])*s;
+      }
+    }
+    return 0;
+  }
+  function vaseOffset(y){ return keyframeLookup(VASE_KEYS, y); }
+
+  // Gourd waist: the actual PLAYABLE cavity pinches inward around mid-height,
+  // raising the difficulty by narrowing the space coins have to stack in.
+  var PINCH_KEYS = [
+    [0,0], [230,0], [310,34], [385,42], [460,34], [540,0], [H,0]
+  ];
+  function pinchOffset(y){ return keyframeLookup(PINCH_KEYS, y); }
+  function innerL(y){ return PL + pinchOffset(y); }
+  function innerR(y){ return PR - pinchOffset(y); }
+
+  function smoothSide(sign, innerXFn){
+    // sign: -1 draws the left wall (outer edge left of inner boundary), +1 the right wall
+    var step = 6;
+    ctx.beginPath();
+    ctx.moveTo(innerXFn(0), 0);
+    for(var y=0; y<=H; y+=step){
+      var yy = Math.min(y,H);
+      ctx.lineTo(innerXFn(yy) + sign*vaseOffset(yy), yy);
+    }
+    ctx.lineTo(innerXFn(H), H);
+    for(var y2=H; y2>=0; y2-=step){
+      ctx.lineTo(innerXFn(Math.max(y2,0)), Math.max(y2,0));
+    }
+    ctx.closePath();
+  }
+
+  function drawBackground(){
+    ctx.clearRect(0,0,CW,H);
+    var bg = ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0, '#fdeecb');
+    bg.addColorStop(1, '#f7d9a0');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,CW,H);
+
+    // clay wall gradient (dusty sage, elegant against the warm backdrop)
+    var clay = ctx.createLinearGradient(0,0,CW,0);
+    clay.addColorStop(0,   '#3f5c4e');
+    clay.addColorStop(0.5, '#6f9683');
+    clay.addColorStop(1,   '#3f5c4e');
+
+    ctx.fillStyle = clay;
+    smoothSide(-1, innerL); ctx.fill();
+    smoothSide(1, innerR); ctx.fill();
+
+    // glossy highlight blob on each wall, clipped so it always stays on the clay
+    [ -1, 1 ].forEach(function(sign){
+      ctx.save();
+      smoothSide(sign, sign<0?innerL:innerR); ctx.clip();
+      var cx = sign<0 ? PL - vaseOffset(350)*0.5 : PR + vaseOffset(350)*0.5;
+      var g = ctx.createRadialGradient(cx,330,4, cx,330,95);
+      g.addColorStop(0, 'rgba(255,255,255,0.38)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,CW,H);
+      ctx.restore();
+    });
+
+    // inner shadow tracing the cavity boundary, for a sense of depth
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    for(var iy=0; iy<=H; iy+=6){ var fn=innerL(iy); iy===0?ctx.moveTo(fn,iy):ctx.lineTo(fn,iy); }
+    ctx.stroke();
+    ctx.beginPath();
+    for(var iy2=0; iy2<=H; iy2+=6){ var fn2=innerR(iy2); iy2===0?ctx.moveTo(fn2,iy2):ctx.lineTo(fn2,iy2); }
+    ctx.stroke();
+
+    // rounded clay floor (rim of the vase base)
+    ctx.fillStyle = '#3f5c4e';
+    var fr = 22;
+    ctx.beginPath();
+    ctx.moveTo(PL - vaseOffset(H-1), H-fr);
+    ctx.arcTo(PL - vaseOffset(H-1), H, PL - vaseOffset(H-1)+fr, H, fr);
+    ctx.lineTo(PR + vaseOffset(H-1)-fr, H);
+    ctx.arcTo(PR + vaseOffset(H-1), H, PR + vaseOffset(H-1), H-fr, fr);
+    ctx.lineTo(PR + vaseOffset(H-1), H-WALL);
+    ctx.lineTo(PL - vaseOffset(H-1), H-WALL);
+    ctx.closePath();
+    ctx.fill();
+
+    // inner cavity (the actual play area) painted back over in cream,
+    // following the gourd waist so the pinch is visible to the player
+    var inner = ctx.createLinearGradient(0,0,0,H);
+    inner.addColorStop(0, '#fff6e4');
+    inner.addColorStop(1, '#ffe9bd');
+    ctx.fillStyle = inner;
+    ctx.beginPath();
+    ctx.moveTo(innerL(0), 0);
+    for(var cy=0; cy<=H-WALL; cy+=6){ ctx.lineTo(innerL(Math.min(cy,H-WALL)), Math.min(cy,H-WALL)); }
+    ctx.lineTo(innerL(H-WALL), H-WALL);
+    ctx.lineTo(innerR(H-WALL), H-WALL);
+    for(var cy2=H-WALL; cy2>=0; cy2-=6){ ctx.lineTo(innerR(Math.max(cy2,0)), Math.max(cy2,0)); }
+    ctx.closePath();
+    ctx.fill();
+
+    // thin gold rim trim along the mouth of the vase
+    ctx.strokeStyle = '#d4af6a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(PL - vaseOffset(0), 1.5);
+    ctx.lineTo(PL - vaseOffset(14)*0.2, 1.5);
+    ctx.moveTo(PR + vaseOffset(0), 1.5);
+    ctx.lineTo(PR + vaseOffset(14)*0.2, 1.5);
+    ctx.stroke();
+
+    // danger line
+    ctx.strokeStyle = 'rgba(255,90,90,0.55)';
+    ctx.setLineDash([8,6]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(innerL(DANGER_Y), DANGER_Y); ctx.lineTo(innerR(DANGER_Y), DANGER_Y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawFruitShape(x, y, tier, angle){
+    var f = FRUITS[tier];
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(angle||0);
+    ctx.beginPath();
+    ctx.arc(0,0,f.r,0,Math.PI*2);
+    ctx.closePath();
+    if(f.image && f.image.complete && f.image.naturalWidth){
+      ctx.save();
+      ctx.clip();
+      ctx.drawImage(f.image, -f.r, -f.r, f.r*2, f.r*2);
+      ctx.restore();
+    } else {
+      var grad = ctx.createRadialGradient(-f.r*0.3,-f.r*0.3,f.r*0.15, 0,0,f.r);
+      grad.addColorStop(0, shade(f.color, 30));
+      grad.addColorStop(1, f.color);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = shade(f.color,-30);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function shade(hex, pct){
+    var c = hex.replace('#','');
+    var num = parseInt(c,16);
+    var r = Math.min(255,Math.max(0,(num>>16)+pct));
+    var g = Math.min(255,Math.max(0,((num>>8)&0xff)+pct));
+    var b = Math.min(255,Math.max(0,(num&0xff)+pct));
+    return 'rgb('+r+','+g+','+b+')';
+  }
+
+  function drawAimer(){
+    if(gameOver) return;
+    var f = FRUITS[currentTier];
+    var x = Math.max(PL+WALL+f.r, Math.min(PR-WALL-f.r, aimX));
+    var y = dropSpawnY(f.r);
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    drawFruitShape(x, y, currentTier, 0);
+    ctx.restore();
+  }
+
+  function drawPops(dt){
+    for(var i=pops.length-1;i>=0;i--){
+      var p = pops[i];
+      p.t += dt;
+      if(p.t > 0.35){ pops.splice(i,1); continue; }
+      var k = p.t/0.35;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 10+k*40, 0, Math.PI*2);
+      ctx.strokeStyle = p.color;
+      ctx.globalAlpha = 1-k;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  var lastTime = performance.now();
+  function loop(now){
+    requestAnimationFrame(loop);
+    var dt = Math.min(0.032, (now-lastTime)/1000);
+    lastTime = now;
+
+    pollGamepadPause();
+    if(started && !paused){
+      if(keys.left) aimX -= 6.5;
+      if(keys.right) aimX += 6.5;
+      pollGamepad(dt);
+    }
+
+    if(started && !gameOver && !paused){
+      Engine.update(engine, dt*1000);
+      checkGameOver(dt);
+    }
+
+    drawBackground();
+    var bodies = Composite.allBodies(world).filter(function(b){ return b.tier!==undefined; });
+    bodies.forEach(function(b){ drawFruitShape(b.position.x, b.position.y, b.tier, b.angle); });
+    if(started && !paused){
+      drawPops(dt);
+      drawAimer();
+    }
+  }
+
+  setup();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+Audio assets used in fruit-merge.html
+
+drop.ogg, merge.ogg
+Source: Kenney "Interface Sounds" (https://kenney.nl/assets/interface-sounds)
+License: CC0 1.0 Universal (Public Domain)
+
+bgm.ogg
+Source: "Cozy Puzzle In-Game 3" by MintoDog (https://opengameart.org/content/cozy-puzzle-in-game-3)
+License: CC0 1.0 Universal (Public Domain)
+
+gameover.ogg
+Source: "Cozy Puzzle Failure (Jingle)" from "Cozy Puzzle Jingle & Result" by MintoDog
+(https://opengameart.org/content/cozy-puzzle-jingle-result)
+License: CC0 1.0 Universal (Public Domain)
+
+No attribution required for any of the above; credited here for reference only.
