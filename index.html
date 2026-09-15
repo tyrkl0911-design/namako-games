@@ -72,10 +72,11 @@
   @keyframes bobR{ 0%,100%{ transform:scaleX(-1) translateY(0);} 50%{ transform:scaleX(-1) translateY(-6px);} }
 
   .banner{
-    position:relative; flex:1; max-width:420px; text-align:center;
-    background:#e6d3a3; color:#4a3a1e; border:4px solid #7a5a2e;
-    padding:14px 18px; font-size:clamp(13px,2.4vw,20px); letter-spacing:0.06em;
-    box-shadow:inset 0 0 0 2px #f3e6c4;
+    position:relative; flex:1; max-width:640px; text-align:center;
+    background:linear-gradient(180deg,#f3e0ae,#e2c583); color:#4a3a1e; border:5px solid #7a5a2e;
+    padding:26px 34px; font-size:clamp(26px,4.8vw,40px); letter-spacing:0.08em;
+    box-shadow:inset 0 0 0 2px #f3e6c4, 0 0 26px rgba(232,201,106,0.45);
+    text-shadow:0 2px 0 rgba(255,255,255,0.5);
   }
 
   .windows{ display:flex; flex-wrap:wrap; gap:3%; width:100%; justify-content:center; margin-top:4px; }
@@ -83,39 +84,40 @@
     background:var(--panel); border:3px solid var(--panel-edge); box-shadow:inset 0 0 0 2px #05070f;
     min-width:270px; padding:0 0 14px;
   }
-  .window.works{ width:58%; max-width:520px; }
-  .window.contact{ width:32%; max-width:280px; }
+  .window.works{ width:60%; max-width:760px; }
+  .window.contact{ width:34%; max-width:380px; }
   .titlebar{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
-    background:linear-gradient(180deg,#2c3d78,#1a2450); padding:8px 10px;
-    font-size:clamp(11px,1.6vw,14px); color:var(--red); border-bottom:3px solid var(--panel-edge);
+    background:linear-gradient(180deg,#2c3d78,#1a2450); padding:10px 14px;
+    font-size:clamp(13px,2vw,19px); color:var(--red); border-bottom:3px solid var(--panel-edge);
   }
-  .titlebar .jp{ color:var(--ink); font-family:'Noto Sans JP',sans-serif; font-size:12px; margin-left:6px; }
-  .titlebar .close{ color:var(--sub); }
+  .titlebar .jp{ color:var(--ink); font-family:'Noto Sans JP',sans-serif; font-size:15px; margin-left:6px; }
+  .titlebar .close{ color:var(--sub); font-size:16px; }
 
-  .tiles{ display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; }
+  .tiles{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:16px; }
   .tile{
-    display:flex; flex-direction:column; align-items:center; gap:6px; text-decoration:none;
-    background:#0e1530; border:2px solid var(--panel-edge); padding:12px 6px; color:var(--ink);
+    display:flex; flex-direction:column; align-items:center; gap:8px; text-decoration:none;
+    background:#0e1530; border:2px solid var(--panel-edge); padding:16px 8px; color:var(--ink);
     transition:transform 0.15s, border-color 0.15s, background 0.15s;
   }
   .tile:hover{ transform:translateY(-3px); border-color:var(--gold); background:#182050; }
-  .tile .icon{ font-size:26px; }
-  .tile .label{ font-size:11px; letter-spacing:0.03em; text-align:center; }
+  .tile .icon{ font-size:34px; }
+  .tile .label{ font-size:13px; letter-spacing:0.03em; text-align:center; }
   .tile.disabled{ opacity:0.45; cursor:default; }
   .tile.disabled:hover{ transform:none; border-color:var(--panel-edge); background:#0e1530; }
 
-  .contact-body{ padding:16px 14px 4px; text-align:center; }
+  .contact-body{ padding:20px 16px 6px; text-align:center; }
   .contact-body .social{
-    display:inline-flex; flex-direction:column; align-items:center; gap:6px; text-decoration:none; color:var(--ink);
+    display:inline-flex; flex-direction:column; align-items:center; gap:8px; text-decoration:none; color:var(--ink);
   }
   .contact-body .social .icon{
-    width:46px; height:46px; border-radius:10px; background:#fff; color:#000; display:flex;
-    align-items:center; justify-content:center; font-size:22px; font-weight:800;
-    box-shadow:0 3px 0 var(--panel-edge);
+    width:58px; height:58px; border-radius:14px; background:#fff; color:#000; display:flex;
+    align-items:center; justify-content:center; font-size:28px; font-weight:800;
+    box-shadow:0 4px 0 var(--panel-edge);
   }
-  .contact-body .social:hover .icon{ transform:translateY(-2px); box-shadow:0 5px 0 var(--gold); }
-  .contact-body .handle{ margin-top:10px; font-size:13px; color:var(--sub); }
+  .contact-body .social:hover .icon{ transform:translateY(-2px); box-shadow:0 6px 0 var(--gold); }
+  .contact-body .social span:last-child{ font-size:15px; }
+  .contact-body .handle{ margin-top:12px; font-size:14px; color:var(--sub); }
   .contact-body .msg{
     display:block; margin:14px auto 0; width:fit-content; background:var(--gold); color:#3a2e10;
     border:none; padding:8px 20px; font-size:12px; font-weight:700; text-decoration:none;
@@ -129,6 +131,8 @@
   .dialog .lead{ color:var(--sub); }
   .dialog .target{ color:var(--gold); }
 
+  .copyright{ margin-top:12px; font-size:10px; color:var(--sub); letter-spacing:0.08em; opacity:0.75; }
+
   .statusbar{
     position:relative; z-index:2; flex-shrink:0;
     display:flex; align-items:center; justify-content:center; gap:4%; flex-wrap:wrap;
@@ -138,6 +142,16 @@
   .statusbar .walk{ color:var(--gold); }
 
   footer{ text-align:center; margin-top:14px; color:#5a6690; font-size:11px; }
+
+  /* On narrow screens the full-bleed no-scroll layout can't fit everything
+     at once, so fall back to a normal scrolling page instead of clipping. */
+  @media (max-width:640px){
+    body{ height:auto; min-height:100vh; overflow-y:auto; overflow-x:hidden; }
+    .scene{ height:auto; min-height:100vh; }
+    .frame{ flex:none; }
+    .banner{ font-size:20px; padding:14px 10px; }
+    .slime{ min-width:34px; }
+  }
 </style>
 </head>
 <body>
@@ -222,6 +236,7 @@
         <span class="lead">SELECT AN OPTION</span><br>
         ▶ <span class="target" id="dialogTarget">WORKS</span>
       </div>
+      <div class="copyright pixel">© 2026 NAMAKOFACTORY</div>
     </div>
 
     <div class="statusbar pixel">
