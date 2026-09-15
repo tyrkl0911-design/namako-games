@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <title>まんまるコイン</title>
+<link rel="manifest" href="manifest-coin.json">
+<meta name="theme-color" content="#ff7a59">
+<link rel="apple-touch-icon" href="icons/coin-192.png">
 <style>
   :root{
     --wood:#c98a4b; --wood-dark:#8a5a2e; --bg-top:#fdeecb; --bg-bottom:#f7d9a0;
@@ -640,6 +643,13 @@
   setup();
   requestAnimationFrame(loop);
 })();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw-coin.js').catch(function(){});
+    });
+  }
 </script>
 </body>
 </html>

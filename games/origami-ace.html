@@ -1,4 +1,8 @@
 <title>Origami Ace</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<link rel="manifest" href="manifest-origami.json">
+<meta name="theme-color" content="#2b3f73">
+<link rel="apple-touch-icon" href="icons/origami-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Quicksand:wght@500;600;700&display=swap">
 <style>
@@ -1882,4 +1886,11 @@
     draw();
   })();
 })();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw-origami.js').catch(function(){});
+    });
+  }
 </script>

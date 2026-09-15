@@ -1,0 +1,15 @@
+{
+  "name": "Origami Ace",
+  "short_name": "Origami Ace",
+  "description": "紙飛行機を操るシューティングゲーム",
+  "start_url": "./origami-ace.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1b2a4a",
+  "theme_color": "#2b3f73",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icons/origami-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/origami-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
