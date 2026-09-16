@@ -54,13 +54,27 @@
   #overlay.show, #pauseOverlay.show, #titleOverlay.show{ display:flex; }
   #overlay h2, #pauseOverlay h2, #titleOverlay h2{ margin:0; font-size:30px; letter-spacing:0.1em; }
   #overlay p, #titleOverlay .tagline{ margin:0; font-size:14px; opacity:0.9; }
+  #titleOverlay .goal{ margin:6px 0 0; font-size:17px; font-weight:800; color:var(--accent); }
   #overlay button, #pauseOverlay button, #titleOverlay button{
     margin-top:8px; border:none; border-radius:999px; padding:10px 28px; font-size:14px; font-weight:700;
     background:var(--accent); color:#fff; cursor:pointer; letter-spacing:0.05em;
   }
   #overlay button:active, #pauseOverlay button:active, #titleOverlay button:active{ transform:scale(0.97); }
-  #titleOverlay{ background:linear-gradient(160deg, rgba(60,40,15,0.75), rgba(70,90,75,0.75)); z-index:5; cursor:pointer; }
+  #titleOverlay{
+    background:
+      radial-gradient(120% 80% at 50% 20%, rgba(255,205,140,0.45), rgba(255,205,140,0) 60%),
+      linear-gradient(160deg, rgba(60,40,15,0.85), rgba(70,90,75,0.85));
+    z-index:5; cursor:pointer; overflow:hidden;
+  }
+  #titleOverlay h2, #titleOverlay .tagline, #titleOverlay .goal{ text-shadow:0 2px 6px rgba(0,0,0,0.85), 0 0 14px rgba(0,0,0,0.5); }
   #titleOverlay h2{ font-size:36px; }
+  #titleOverlay .coinScatter{ position:absolute; inset:0; pointer-events:none; }
+  #titleOverlay .coinScatter .coin{
+    position:absolute; left:var(--x); top:var(--y); width:100px; height:100px;
+    border-radius:50%; overflow:hidden; box-shadow:0 8px 14px rgba(0,0,0,0.5);
+    transform:translate(-50%,-50%) rotate(var(--r)) scale(var(--s));
+  }
+  #titleOverlay .coinScatter .coin img{ width:100%; height:100%; object-fit:cover; display:block; }
 
   #pauseOverlay .controls{
     text-align:left; font-size:13px; line-height:2.1; background:rgba(255,255,255,0.1);
@@ -88,8 +102,16 @@
   <div id="stage">
     <canvas id="c" width="648" height="680"></canvas>
     <div id="titleOverlay" class="show">
+      <div class="coinScatter" aria-hidden="true">
+        <div class="coin" style="--x:10%; --y:78%; --r:-18deg; --s:0.55;"><img src="assets/coins/yen500.png"></div>
+        <div class="coin" style="--x:85%; --y:80%; --r:14deg; --s:0.6;"><img src="assets/coins/yen1000.png"></div>
+        <div class="coin" style="--x:22%; --y:92%; --r:8deg; --s:0.7;"><img src="assets/coins/yen5000.png"></div>
+        <div class="coin" style="--x:72%; --y:94%; --r:-10deg; --s:0.78;"><img src="assets/coins/yen10000.png"></div>
+        <div class="coin" style="--x:50%; --y:86%; --r:22deg; --s:0.45;"><img src="assets/coins/yen100.png"></div>
+      </div>
       <h2>まんまる<span style="color:var(--accent);">コイン</span></h2>
       <p class="tagline">同じ硬貨を合体させて、大きなお金を目指そう</p>
+      <p class="goal">20万円を目指そう!</p>
       <button id="startBtn">はじめる</button>
     </div>
     <div id="overlay">
@@ -115,17 +137,18 @@
   'use strict';
 
   var FRUITS = [
-    { name:'1円',     r:16,  color:'#c9ccd0', img:'yen1',     score:1 },
-    { name:'5円',     r:22,  color:'#e0b84a', img:'yen5',     score:5 },
-    { name:'10円',    r:29,  color:'#c07a41', img:'yen10',    score:10 },
-    { name:'50円',    r:37,  color:'#c7cbd1', img:'yen50',    score:50 },
-    { name:'100円',   r:46,  color:'#c7cbd1', img:'yen100',   score:100 },
-    { name:'500円',   r:56,  color:'#cbb56a', img:'yen500',   score:500 },
-    { name:'1000円',  r:68,  color:'#c7cbd1', img:'yen1000',  score:1000 },
-    { name:'5000円',  r:82,  color:'#b9b9bd', img:'yen5000',  score:5000 },
-    { name:'10000円', r:98,  color:'#c9a24a', img:'yen10000', score:10000 },
+    { name:'1円',     r:19,  color:'#c9ccd0', img:'yen1',     score:1 },
+    { name:'5円',     r:26,  color:'#e0b84a', img:'yen5',     score:5 },
+    { name:'10円',    r:35,  color:'#c07a41', img:'yen10',    score:10 },
+    { name:'50円',    r:44,  color:'#c7cbd1', img:'yen50',    score:50 },
+    { name:'100円',   r:55,  color:'#c7cbd1', img:'yen100',   score:100 },
+    { name:'500円',   r:67,  color:'#cbb56a', img:'yen500',   score:500 },
+    { name:'1000円',  r:82,  color:'#c7cbd1', img:'yen1000',  score:1000 },
+    { name:'5000円',  r:98,  color:'#b9b9bd', img:'yen5000',  score:5000 },
+    { name:'10000円', r:137, color:'#c9a24a', img:'yen10000', score:10000 },
   ];
   var MAX_TIER = FRUITS.length - 1;
+  var GOAL_SCORE = 200000;
   var COIN_BASE = 'assets/coins/';
   FRUITS.forEach(function(f){
     f.image = new Image();
@@ -221,6 +244,7 @@
     paused = false;
     pauseOverlayEl.classList.remove('show');
     document.getElementById('overlay').classList.remove('show');
+    document.getElementById('overTitle').textContent = 'GAME OVER';
     updateScore();
 
     var floor = Bodies.rectangle(PL+W/2, H+WALL/2, W, WALL, { isStatic:true, render:{} });
@@ -294,8 +318,18 @@
       }
       score += FRUITS[tier].score * 2; // the actual yen value of the two coins that just combined
       updateScore();
+      if(!gameOver && score >= GOAL_SCORE) winGame();
     });
     pendingMerges.length = 0;
+  }
+
+  function winGame(){
+    gameOver = true;
+    bgm.pause();
+    playSfx(sfxMerge, 1.4);
+    document.getElementById('overTitle').textContent = 'GAME CLEAR!';
+    document.getElementById('overScore').textContent = 'ごうけい: ' + formatYen(score);
+    document.getElementById('overlay').classList.add('show');
   }
 
   var pops = [];
