@@ -1,4 +1,4 @@
-const CACHE = 'manmaru-coin-v1';
+const CACHE = 'manmaru-coin-v2';
 const ASSETS = [
   './fruit-merge.html',
   './manifest-coin.json',
@@ -17,7 +17,6 @@ const ASSETS = [
   './assets/audio/drop.ogg',
   './assets/audio/merge.ogg',
   './assets/audio/gameover.ogg',
-  'https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js',
 ];
 
 self.addEventListener('install', (event) => {
@@ -32,20 +31,20 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Network-first for the page/script itself, so a new deploy is always what
+// the player gets while online; only fall back to the cached copy (for
+// offline play) when the network request fails.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request)
-        .then((res) => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then((c) => c.put(event.request, clone));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || fetchPromise;
-    })
+    fetch(event.request)
+      .then((res) => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then((c) => c.put(event.request, clone));
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
