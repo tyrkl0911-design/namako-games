@@ -218,7 +218,21 @@
     unlockAudio();
     var f = FRUITS[currentTier];
     var x = Math.max(PL+WALL+f.r, Math.min(PR-WALL-f.r, aimX));
-    var body = makeFruitBody(x, dropSpawnY(f.r), currentTier);
+    var y = dropSpawnY(f.r);
+    // Safety net: never spawn a coin overlapping one that's already there.
+    // A real touchscreen can occasionally fire an extra drop for what a
+    // player experiences as one tap; letting two circles start overlapped
+    // makes Matter.js's overlap-resolution shove them apart violently
+    // (looks like a coin rocketing away and vanishing off the play field).
+    // If the spot is occupied, just drop the request instead - the player
+    // barely notices a missed tap, unlike a coin flying off the board.
+    var blocked = Composite.allBodies(world).some(function(b){
+      if(b.tier===undefined) return false;
+      var minDist = f.r + b.circleRadius - 4; // small tolerance for normal stacking contact
+      return Math.hypot(b.position.x-x, b.position.y-y) < minDist;
+    });
+    if(blocked) return;
+    var body = makeFruitBody(x, y, currentTier);
     World.add(world, body);
     playSfx(sfxDrop);
     canDrop = false;
