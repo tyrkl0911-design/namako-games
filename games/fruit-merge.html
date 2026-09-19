@@ -283,7 +283,17 @@
     if(y < HUD_H) return true; // tapped elsewhere in the status bar
     return false;
   }
+  // Some mobile browsers (Xiaomi/MIUI's WebView among them) still fire a
+  // synthetic mousedown/click after a touch sequence even though
+  // preventDefault() was called on every touch event. Left unguarded, that
+  // phantom mousedown calls dropFruit() a second time for the same tap,
+  // spawning two coins on top of each other - Matter.js then shoves them
+  // apart with a violent overlap-resolution impulse, which looks exactly
+  // like a coin rocketing sideways and vanishing off the play field.
+  var lastTouchAt = 0;
+  function markTouch(){ lastTouchAt = Date.now(); }
   canvas.addEventListener('mousedown', function(e){
+    if(Date.now() - lastTouchAt < 700) return; // swallow the synthetic mouse event
     var p = canvasPoint(e.clientX, e.clientY);
     if(!handleTapButtons(p.x, p.y)) dropFruit();
   });
@@ -293,6 +303,7 @@
   var touchAiming = false;
   canvas.addEventListener('touchstart', function(e){
     e.preventDefault();
+    markTouch();
     var t = e.touches[0];
     var p = canvasPoint(t.clientX, t.clientY);
     aimX = p.x;
@@ -300,12 +311,13 @@
   }, { passive:false });
   canvas.addEventListener('touchend', function(e){
     e.preventDefault();
+    markTouch();
     if(touchAiming){
       touchAiming = false;
       dropFruit();
     }
   }, { passive:false });
-  canvas.addEventListener('touchcancel', function(){ touchAiming = false; });
+  canvas.addEventListener('touchcancel', function(){ markTouch(); touchAiming = false; });
 
   document.addEventListener('keydown', function(e){
     if(e.code==='ArrowLeft') keys.left = true;
