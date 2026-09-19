@@ -167,6 +167,7 @@
     body.tier = tier;
     body.fruitId = idSeq++;
     body.settleSince = null;
+    body.bornAt = performance.now();
     return body;
   }
 
@@ -359,16 +360,21 @@
     gpDropPrev = dropBtn;
   }
 
+  var SPAWN_GRACE_MS = 600; // ignore the danger line right after a coin is created, so
+                             // a slow/janky first frame (common on mobile) can't be
+                             // mistaken for "stuck at rest" before it has even started falling
   function checkGameOver(dt){
     if(gameOver) return;
     var bodies = Composite.allBodies(world).filter(function(b){ return b.tier!==undefined; });
+    var now = performance.now();
     var overLine = false;
     bodies.forEach(function(b){
+      if(now - b.bornAt < SPAWN_GRACE_MS){ b.settleSince = null; return; }
       var speed = Math.hypot(b.velocity.x, b.velocity.y);
       var topY = b.position.y - b.circleRadius;
       if(topY < DANGER_Y && speed < 0.35){
-        if(b.settleSince===null) b.settleSince = performance.now();
-        if(performance.now() - b.settleSince > 250) overLine = true;
+        if(b.settleSince===null) b.settleSince = now;
+        if(now - b.settleSince > 250) overLine = true;
       } else {
         b.settleSince = null;
       }
