@@ -1121,14 +1121,16 @@
     pageRoot.style.zoom='';
     pageRoot.style.transform='';
     document.body.style.height='';
+    var bodyStyle=window.getComputedStyle(document.body);
+    var bodyPadV=parseFloat(bodyStyle.paddingTop)+parseFloat(bodyStyle.paddingBottom);
     var naturalHeight=pageRoot.getBoundingClientRect().height;
-    var availableHeight=window.innerHeight-4;
+    var availableHeight=window.innerHeight-bodyPadV-8;
     var factor=Math.max(0.5, Math.min(1, availableHeight/naturalHeight));
     if(supportsZoom){
       pageRoot.style.zoom=factor;
     } else {
       pageRoot.style.transform='scale('+factor+')';
-      document.body.style.height=(naturalHeight*factor)+'px';
+      document.body.style.height=(naturalHeight*factor+bodyPadV)+'px';
     }
   }
   fitToScreen();
