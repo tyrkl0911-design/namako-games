@@ -130,7 +130,10 @@
     paused = false;
     overTitleText = 'GAME OVER';
 
-    var floor = Bodies.rectangle(PL+W/2, H+WALL/2, W, WALL, { isStatic:true, render:{} });
+    // Slightly wider than the inner cavity so its edges overlap the side walls
+    // instead of just touching them - closes off any sub-pixel seam a coin
+    // could otherwise catch on and squeeze through.
+    var floor = Bodies.rectangle(PL+W/2, H+WALL/2, W+WALL*2, WALL, { isStatic:true, render:{} });
     floor.friction = 0.4; floor.restitution = 0.05;
     var walls = [floor];
     // segmented side walls that follow the gourd waist profile - kept
@@ -245,6 +248,7 @@
     Composite.clear(world, false);
     Events.off(engine, 'collisionStart', onCollision);
     setup();
+    physicsAccumulator = 0;
     if(!muted) bgm.play().catch(function(){});
   }
 
@@ -775,6 +779,16 @@
   }
 
   var lastTime = performance.now();
+  // Fixed sub-step for the physics update. Mobile frame timing is choppier
+  // and more variable than desktop, and Matter.js's friction/restitution
+  // solving gets noticeably less accurate at large, uneven timesteps - a
+  // coin that should settle in place can end up sliding instead of stopping.
+  // Feeding it a constant-size step (run several times to cover a long
+  // frame) keeps the settling behavior consistent regardless of device fps.
+  var PHYSICS_STEP_MS = 1000/120;
+  var physicsAccumulator = 0;
+  var MAX_PHYSICS_STEPS = 6;
+
   function loop(now){
     requestAnimationFrame(loop);
     var dt = Math.min(0.032, (now-lastTime)/1000);
@@ -788,7 +802,44 @@
     }
 
     if(started && !gameOver && !paused){
-      Engine.update(engine, dt*1000);
+      physicsAccumulator += dt*1000;
+      var steps = 0;
+      while(physicsAccumulator >= PHYSICS_STEP_MS && steps < MAX_PHYSICS_STEPS){
+        Engine.update(engine, PHYSICS_STEP_MS);
+        // Matter.js only models slipping friction. Landing slightly
+        // off-center (near-inevitable given floating point) can leave a
+        // coin rolling without slipping, and once that happens ordinary
+        // friction can't touch it - frictionAir alone is far too weak to
+        // stop it, so it keeps rolling (in some size/height combinations
+        // for a very long time) until it rolls off the play field and
+        // looks like it vanished. Damping angular velocity a touch every
+        // substep stands in for the rolling resistance Matter.js doesn't
+        // simulate, so a coin still rolls naturally but settles within a
+        // second or two instead of essentially never stopping.
+        var fruitBodies = Composite.allBodies(world);
+        for(var fbi=0; fbi<fruitBodies.length; fbi++){
+          var fb = fruitBodies[fbi];
+          if(fb.tier===undefined) continue;
+          Body.setAngularVelocity(fb, fb.angularVelocity*0.9);
+          // Safety net: very rarely Matter.js's own contact-resolution code
+          // teleports a body several dozen pixels in a single step with no
+          // velocity that explains the jump - reproduced even with a coin
+          // sitting perfectly still for half a second beforehand, so this is
+          // an engine-level numerical quirk, not something fixable by tuning
+          // gameplay physics. Left alone it reads as "the coin vanished."
+          // Anything clearly outside the vase is snapped back to a safe spot
+          // right above the floor and stopped - a coin can't actually escape.
+          var fbr = fb.circleRadius;
+          if(fb.position.y > H + 8 || fb.position.x < PL - 8 || fb.position.x > PR + 8){
+            var safeX = Math.min(Math.max(fb.position.x, PL+fbr+2), PR-fbr-2);
+            Body.setPosition(fb, {x:safeX, y:H-fbr});
+            Body.setVelocity(fb, {x:0,y:0});
+            Body.setAngularVelocity(fb, 0);
+          }
+        }
+        physicsAccumulator -= PHYSICS_STEP_MS;
+        steps++;
+      }
       checkGameOver(dt);
     }
 
