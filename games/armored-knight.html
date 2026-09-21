@@ -196,6 +196,16 @@
   .muteBtn.is-muted{color:var(--ink-dim);}
   #padStatus{color:var(--green);}
   #padStatus.off{color:var(--ink-dim);}
+
+  /* Phones: the outer padding was eating into the game screen's actual
+     size more than it needed to — trim it so the canvas grows. */
+  @media (max-width:600px){
+    body{ padding-block:10px 16px; }
+    .page{ padding-inline:6px; gap:10px; }
+    .cabinet{ padding:8px 8px 12px; gap:8px; }
+    h1{ font-size:clamp(18px,6vw,24px); }
+    .tagline{ font-size:11px; margin-top:-4px; }
+  }
 </style>
 
 <div class="page">
