@@ -1,0 +1,1758 @@
+<title>アーマードナイト</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<style>
+  :root{
+    --bg:#0a0e1a;
+    --cabinet:#171c2c;
+    --cabinet-edge:#262e48;
+    --screen:#060911;
+    --ink:#eaf0ff;
+    --ink-dim:#8791ad;
+    --cyan:#43e5ff;
+    --magenta:#ff4d94;
+    --amber:#ffcf4d;
+    --green:#6dffb0;
+    --red:#ff5c5c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:radial-gradient(120% 140% at 50% 0%, #131a2c 0%, var(--bg) 60%);
+    color:var(--ink);
+    font-family:"Zen Maru Gothic", sans-serif;
+    display:flex;
+    justify-content:center;
+    padding-block:20px 32px;
+  }
+  .page{
+    width:100%;
+    max-width:760px;
+    padding-inline:16px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+  }
+  h1{
+    font-family:"DotGothic16", monospace;
+    font-size:clamp(22px,6vw,30px);
+    letter-spacing:0.06em;
+    color:var(--amber);
+    text-shadow:0 0 12px rgba(255,207,77,0.55);
+    margin:0;
+    text-align:center;
+    text-wrap:balance;
+  }
+  .tagline{
+    font-size:12.5px;
+    color:var(--ink-dim);
+    margin-top:-8px;
+    text-align:center;
+  }
+  .cabinet{
+    width:100%;
+    background:linear-gradient(180deg,var(--cabinet-edge),var(--cabinet) 12%, var(--cabinet) 92%, var(--cabinet-edge));
+    border-radius:18px;
+    padding:14px;
+    box-shadow:0 18px 40px -18px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.04);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .hud{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:space-between;
+    align-items:center;
+    gap:4px 10px;
+    font-family:"DotGothic16", monospace;
+    font-size:12.5px;
+    color:var(--ink);
+    padding-inline:4px;
+  }
+  .hud .stage{color:var(--amber);}
+  .hud .lives{color:var(--red);}
+  .hud .score{color:var(--cyan);}
+  .screen-wrap{
+    position:relative;
+    width:100%;
+    aspect-ratio:16/9;
+    background:var(--screen);
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,0.06), inset 0 0 24px rgba(0,0,0,0.6);
+  }
+  canvas{
+    width:100%;
+    height:100%;
+    display:block;
+    image-rendering:pixelated;
+  }
+  .overlay{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    background:rgba(6,9,17,0.88);
+    text-align:center;
+    padding:16px;
+  }
+  .overlay[hidden]{display:none;}
+  .overlay h2{
+    font-family:"DotGothic16", monospace;
+    font-size:20px;
+    color:var(--amber);
+    margin:0;
+    letter-spacing:0.04em;
+  }
+  .overlay p{
+    font-size:12.5px;
+    color:var(--ink-dim);
+    margin:0;
+    max-width:280px;
+    line-height:1.6;
+  }
+  #pauseOverlay{
+    /* the explanation text can be taller than the screen on narrow phones —
+       scroll instead of clipping it or covering the resume button */
+    overflow-y:auto;
+    justify-content:flex-start;
+    padding-block:18px;
+  }
+  #pauseOverlay p{
+    max-width:min(380px, 82%);
+    text-align:left;
+    line-height:1.65;
+    font-size:11.5px;
+  }
+  .btn{
+    font-family:"DotGothic16", monospace;
+    font-size:14px;
+    color:#08111f;
+    background:var(--amber);
+    border:none;
+    border-radius:8px;
+    padding:10px 22px;
+    letter-spacing:0.05em;
+    cursor:pointer;
+    box-shadow:0 6px 0 #b8860b;
+  }
+  .btn:active{transform:translateY(3px);box-shadow:0 3px 0 #b8860b;}
+  .btn.secondary{
+    background:var(--cabinet-edge);
+    color:var(--ink);
+    box-shadow:0 6px 0 #0e1220;
+  }
+  .controls{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+  }
+  .dpad{
+    display:flex;
+    gap:8px;
+  }
+  .dbtn, .abtn{
+    width:56px;
+    height:56px;
+    border-radius:12px;
+    background:var(--cabinet-edge);
+    border:none;
+    color:var(--ink);
+    font-family:"DotGothic16", monospace;
+    font-size:20px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06), 0 4px 0 #0e1220;
+    user-select:none;
+    touch-action:manipulation;
+  }
+  .dbtn:active, .abtn:active{transform:translateY(3px);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06);}
+  .abtns{display:flex;gap:8px;}
+  .abtn.attack{background:var(--magenta);color:#1a0410;}
+  .abtn.jump{background:var(--cyan);color:#04141a;}
+  .hint{font-size:11px;color:var(--ink-dim);text-align:center;}
+  .sub-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+    font-size:11px;
+    color:var(--ink-dim);
+  }
+  .muteBtn{
+    font-family:"DotGothic16", monospace;
+    font-size:12px;
+    color:var(--ink);
+    background:var(--cabinet-edge);
+    border:none;
+    border-radius:6px;
+    padding:5px 10px;
+    cursor:pointer;
+  }
+  .muteBtn.is-muted{color:var(--ink-dim);}
+  #padStatus{color:var(--green);}
+  #padStatus.off{color:var(--ink-dim);}
+</style>
+
+<div class="page">
+  <h1>アーマードナイト</h1>
+  <div class="tagline">鎧1枚が命綱。死んで覚える横スクロールアクション。</div>
+  <div class="cabinet">
+    <div class="hud">
+      <span id="stageVal" class="stage">STAGE 1</span>
+      <span class="lives">残機 <span id="livesVal">3</span></span>
+      <span id="armorVal">🛡️ 装備中</span>
+      <span id="weaponVal">🔱 槍</span>
+      <span class="score">SCORE <span id="scoreVal">0</span></span>
+    </div>
+    <div class="screen-wrap">
+      <canvas id="game" width="384" height="216"></canvas>
+      <audio id="bgmAudio" src="bgm.mp3" loop preload="auto"></audio>
+      <div class="overlay" id="titleOverlay">
+        <h2>ARMORED KNIGHT</h2>
+        <p>鎧1枚が命綱の横スクロールアクション。<br>操作方法はプレイ中に⏸(ポーズ)でいつでも確認できる。</p>
+        <button class="btn" id="startBtn">スタート</button>
+      </div>
+      <div class="overlay" id="deadOverlay" hidden>
+        <h2>MISS</h2>
+        <p id="deadMsg"></p>
+        <button class="btn" id="continueBtn">つづける</button>
+      </div>
+      <div class="overlay" id="overOverlay" hidden>
+        <h2>GAME OVER</h2>
+        <p id="overMsg"></p>
+        <button class="btn" id="retryBtn">最初から</button>
+      </div>
+      <div class="overlay" id="clearOverlay" hidden>
+        <h2 id="clearTitle">STAGE CLEAR!</h2>
+        <p id="clearMsg"></p>
+        <button class="btn" id="clearRetryBtn">もう一度遊ぶ</button>
+      </div>
+      <div class="overlay" id="pauseOverlay" hidden>
+        <h2>PAUSE</h2>
+        <p>
+          矢印キー/仮想パッド/コントローラーで移動・ジャンプ(空中でもう一度ジャンプ可能な2段ジャンプ)、Z・攻撃ボタンで武器を投げる。<br>
+          鎧が脱げたらもう1発で死亡。<br>
+          幅の広い落とし穴は、手前の高台に登ってから飛ぶと渡りやすい。<br>
+          斧を拾うと、槍とほぼ同じ射程で、低い弧を描いて飛ぶ攻撃力1.5倍の武器に変わる。<br><br>
+          PC: ←→移動 / X or ↑ ジャンプ(2段可) / Z 攻撃 / P ポーズ<br>
+          コントローラー: 十字キー移動・A ジャンプ(2段可)・X or B 攻撃・Start ポーズ/決定
+        </p>
+        <button class="btn" id="resumeBtn">再開する</button>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="dpad">
+        <button class="dbtn" id="leftBtn">◀</button>
+        <button class="dbtn" id="rightBtn">▶</button>
+      </div>
+      <div class="abtns">
+        <button class="abtn attack" id="attackBtn">槍</button>
+        <button class="abtn jump" id="jumpBtn">跳</button>
+      </div>
+    </div>
+    <div class="sub-row">
+      <span id="padStatus" class="off">🎮 未接続(接続すると自動で使えます)</span>
+      <button class="muteBtn" id="pauseBtn">⏸ ポーズ</button>
+      <button class="muteBtn" id="muteBtn">🔊 音ON</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const GROUND_Y = H - 24;
+
+  // ---------- Audio (chiptune-ish beeps + a tiny sequenced BGM via WebAudio) ----------
+  let actx = null;
+  let muted = false;
+  function ensureAudio(){ if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+  function beep(freq, dur, type, vol){
+    if(!actx || muted) return;
+    const o = actx.createOscillator();
+    const g = actx.createGain();
+    o.type = type || 'square';
+    o.frequency.value = freq;
+    g.gain.value = (vol!==undefined?vol:0.08);
+    o.connect(g); g.connect(actx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.stop(actx.currentTime + dur);
+  }
+  const sfx = {
+    jump: () => beep(520, 0.12, 'square', 0.07),
+    doubleJump: () => beep(700, 0.12, 'square', 0.07),
+    throw: () => beep(760, 0.08, 'square', 0.06),
+    hit: () => beep(160, 0.18, 'sawtooth', 0.09),
+    dead: () => beep(90, 0.4, 'sawtooth', 0.1),
+    enemyDown: () => beep(300, 0.1, 'triangle', 0.07),
+    armorUp: () => beep(880, 0.15, 'triangle', 0.08),
+    bossHit: () => beep(200, 0.15, 'square', 0.09),
+    clear: () => { beep(660,0.12,'square',0.08); setTimeout(()=>beep(880,0.16,'square',0.08),120); setTimeout(()=>beep(1100,0.2,'square',0.09),260); }
+  };
+
+  // BGM: a generated orchestral loop, played through an <audio> element.
+  const bgmAudio = document.getElementById('bgmAudio');
+  bgmAudio.volume = 0.35;
+  function startBgm(){
+    if(muted) return;
+    bgmAudio.currentTime = 0;
+    bgmAudio.play().catch(()=>{});
+  }
+  function stopBgm(){
+    bgmAudio.pause();
+  }
+
+  const pauseOverlay = document.getElementById('pauseOverlay');
+  function togglePause(){
+    // player.dead guards against pausing during the 500ms miss/game-over
+    // delay in loseLife() — otherwise that timeout would force state to
+    // 'dead'/'over' out from under the pause screen a moment later.
+    if(state === 'playing' && !player.dead){
+      state = 'paused';
+      pauseOverlay.hidden = false;
+      bgmAudio.pause();
+    } else if(state === 'paused'){
+      state = 'playing';
+      pauseOverlay.hidden = true;
+      // drop any jump/attack presses that landed while paused, so resuming
+      // doesn't immediately trigger an unintended jump or throw
+      jumpPressedEdge = false;
+      attackPressedEdge = false;
+      if(!muted) bgmAudio.play().catch(()=>{});
+    }
+  }
+  document.getElementById('pauseBtn').addEventListener('click', ()=>{ ensureAudio(); togglePause(); });
+  document.getElementById('resumeBtn').addEventListener('click', togglePause);
+
+  const muteBtn = document.getElementById('muteBtn');
+  muteBtn.addEventListener('click', ()=>{
+    ensureAudio();
+    muted = !muted;
+    muteBtn.textContent = muted ? '🔇 音OFF' : '🔊 音ON';
+    muteBtn.classList.toggle('is-muted', muted);
+    bgmAudio.muted = muted;
+    if(muted) bgmAudio.pause();
+    else if(state==='playing' && !player.dead) bgmAudio.play().catch(()=>{});
+  });
+
+  // ---------- Stage data ----------
+  // segments: {x1,x2,type,elev} type: 'floor' or 'pit'. elev is the floor's
+  // height relative to normal ground level (0 = normal, negative = a raised
+  // platform). Pits have no elev (falling onto one is always fatal).
+  //
+  // Each "platform" climb is a single 4-step staircase (elev -24/-50/-90/-130,
+  // each step <=40px so a single jump — max height 65px — always clears it)
+  // leading to ONE wide pit ahead of the platform, landing directly on normal
+  // ground (elev:0) on the far side. There is deliberately no intermediate
+  // "stepping stone" island: a physics simulation using the game's own
+  // semi-implicit-Euler integration (from elev:-130) showed a jump's landing
+  // spot can range anywhere from ~109px (the true shortest case: a single
+  // jump with no double jump at all) up to ~185px+ (a double jump delayed
+  // almost to the point of naturally landing), so a narrow island is never a
+  // safe landing target — only a pit wide enough to clear at that shortest
+  // (single-jump) distance, with a normal floor beyond it wide enough to
+  // catch every longer/slower timing too, avoids an overshoot death. A
+  // double jump re-triggered immediately lands slightly farther than a
+  // single jump (~112-113px, the extra hop adding a little more distance),
+  // so it is never the shortest case and doesn't tighten the margin below.
+  // Each 90px pit has ~19-23px of margin under the true shortest (single
+  // jump) distance of ~109px. Enemies and pickups are also kept out of the
+  // ~200px zone right past each such pit, since a jump landing that far out
+  // cannot be predicted precisely enough to place anything there safely
+  // (see the note on makeStage1Enemies).
+  const STAGE1_SEGMENTS = [
+    {x1:0, x2:380, type:'floor', elev:0},
+    {x1:380, x2:460, type:'pit'},                  // basic pit (80px)
+    {x1:460, x2:620, type:'floor', elev:0},
+    {x1:620, x2:660, type:'floor', elev:-24},       // staircase step 1
+    {x1:660, x2:700, type:'floor', elev:-50},       // staircase step 2
+    {x1:700, x2:740, type:'floor', elev:-90},       // staircase step 3
+    {x1:740, x2:800, type:'floor', elev:-130},      // platform 1 (top of staircase)
+    {x1:800, x2:890, type:'pit'},                   // wide pit (90px) — lands on normal ground ahead
+    {x1:890, x2:1180, type:'floor', elev:0},
+    {x1:1180, x2:1260, type:'pit'},                 // basic pit (80px)
+    {x1:1260, x2:1500, type:'floor', elev:0},
+    {x1:1500, x2:1540, type:'floor', elev:-24},     // staircase step 1
+    {x1:1540, x2:1580, type:'floor', elev:-50},     // staircase step 2
+    {x1:1580, x2:1620, type:'floor', elev:-90},     // staircase step 3
+    {x1:1620, x2:1680, type:'floor', elev:-130},    // platform 2
+    {x1:1680, x2:1770, type:'pit'},                 // wide pit (90px)
+    {x1:1770, x2:2400, type:'floor', elev:0},
+    {x1:2400, x2:2470, type:'pit'},                 // basic pit (70px)
+    {x1:2470, x2:3200, type:'floor', elev:0},       // boss floor
+  ];
+
+  // Stage 2: longer, one extra platform+pit crossing, and tougher/denser
+  // enemies. Uses the same staircase+single-wide-pit pattern as stage 1 (see
+  // the note above) — no narrow landing islands.
+  const STAGE2_SEGMENTS = [
+    {x1:0, x2:300, type:'floor', elev:0},
+    {x1:300, x2:380, type:'pit'},                   // basic pit (80px)
+    {x1:380, x2:500, type:'floor', elev:0},
+    {x1:500, x2:540, type:'floor', elev:-24},
+    {x1:540, x2:580, type:'floor', elev:-50},
+    {x1:580, x2:620, type:'floor', elev:-90},
+    {x1:620, x2:680, type:'floor', elev:-130},      // platform 1
+    {x1:680, x2:770, type:'pit'},                   // wide pit (90px)
+    {x1:770, x2:1000, type:'floor', elev:0},
+    {x1:1000, x2:1080, type:'pit'},                 // basic pit (80px)
+    {x1:1080, x2:1300, type:'floor', elev:0},
+    {x1:1300, x2:1340, type:'floor', elev:-24},
+    {x1:1340, x2:1380, type:'floor', elev:-50},
+    {x1:1380, x2:1420, type:'floor', elev:-90},
+    {x1:1420, x2:1480, type:'floor', elev:-130},    // platform 2
+    {x1:1480, x2:1570, type:'pit'},                 // wide pit (90px)
+    {x1:1570, x2:1900, type:'floor', elev:0},
+    {x1:1900, x2:1980, type:'pit'},                 // basic pit (80px)
+    {x1:1980, x2:2200, type:'floor', elev:0},
+    {x1:2200, x2:2240, type:'floor', elev:-24},
+    {x1:2240, x2:2280, type:'floor', elev:-50},
+    {x1:2280, x2:2320, type:'floor', elev:-90},
+    {x1:2320, x2:2380, type:'floor', elev:-130},    // platform 3
+    {x1:2380, x2:2470, type:'pit'},                 // wide pit (90px)
+    {x1:2470, x2:3000, type:'floor', elev:0},
+    {x1:3000, x2:3070, type:'pit'},                 // basic pit (70px)
+    {x1:3070, x2:3600, type:'floor', elev:0},       // boss floor
+  ];
+
+  // Stage 3: no pits, platforms or regular enemies at all — a short,
+  // straight run (so nothing but the boss itself can kill the player before
+  // the fight even starts) leading into a single final-boss arena. All of
+  // the stage's difficulty comes from the boss having three independently
+  // destructible parts and three attack patterns that intensify as parts
+  // are destroyed.
+  const STAGE3_SEGMENTS = [
+    {x1:0, x2:1400, type:'floor', elev:0},
+  ];
+
+  // Enemy placements avoid not just pit/platform sections but also the
+  // ~200px "uncertain landing zone" right after each staircase+wide-pit
+  // crossing (a double jump's landing spot varies a lot with input timing —
+  // see the note above), so a player can never take an unavoidable hit the
+  // instant they land from clearing one of those pits.
+  function makeStage1Enemies(){
+    return [
+      {kind:'walker', x:340, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:34, animT:0, hitFlash:0},
+      {kind:'walker', x:560, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:36, animT:0, hitFlash:0},
+      {kind:'walker', x:1140, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:32, animT:0, hitFlash:0},
+      {kind:'walker', x:1320, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:36, animT:0, hitFlash:0},
+      {kind:'walker', x:1400, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:34, animT:0, hitFlash:0},
+      {kind:'flyer', x:1420, y:20, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:20, t:0, hitFlash:0},
+      {kind:'walker', x:1450, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:38, animT:0, hitFlash:0},
+      {kind:'walker', x:2010, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:36, animT:0, hitFlash:0},
+      {kind:'flyer', x:2050, y:24, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:24, t:Math.random()*10, hitFlash:0},
+      {kind:'walker', x:2110, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:38, animT:0, hitFlash:0},
+      {kind:'flyer', x:2150, y:22, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:22, t:Math.random()*10, hitFlash:0},
+      {kind:'walker', x:2230, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:38, animT:0, hitFlash:0},
+      {kind:'walker', x:2290, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:40, animT:0, hitFlash:0},
+      {kind:'flyer', x:2550, y:26, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:26, t:Math.random()*10, hitFlash:0},
+      {kind:'walker', x:2700, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:40, animT:0, hitFlash:0},
+      {kind:'walker', x:2850, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:42, animT:0, hitFlash:0},
+      {kind:'walker', x:2930, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:42, animT:0, hitFlash:0},
+    ];
+  }
+
+  // Stage 2 enemies: higher HP (3), higher speed, denser packing — placed
+  // only in normal (elev:0) floor sections, never over a pit or platform,
+  // and never in the ~200px uncertain-landing zone right after a
+  // staircase+wide-pit crossing (see the note on makeStage1Enemies).
+  function makeStage2Enemies(){
+    return [
+      {kind:'walker', x:120, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:44, animT:0, hitFlash:0},
+      {kind:'walker', x:220, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:46, animT:0, hitFlash:0},
+      {kind:'flyer', x:420, y:22, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:22, t:0, hitFlash:0},
+      {kind:'walker', x:1130, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:48, animT:0, hitFlash:0},
+      {kind:'walker', x:1155, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:46, animT:0, hitFlash:0},
+      {kind:'flyer', x:1180, y:24, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:24, t:Math.random()*10, hitFlash:0},
+      {kind:'walker', x:1205, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:48, animT:0, hitFlash:0},
+      {kind:'walker', x:1230, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:50, animT:0, hitFlash:0},
+      {kind:'walker', x:1255, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:50, animT:0, hitFlash:0},
+      {kind:'flyer', x:1810, y:26, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:26, t:Math.random()*10, hitFlash:0},
+      {kind:'walker', x:1830, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:50, animT:0, hitFlash:0},
+      {kind:'walker', x:1850, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:50, animT:0, hitFlash:0},
+      {kind:'flyer', x:2060, y:22, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:22, t:Math.random()*10, hitFlash:0},
+      {kind:'hopper', x:2020, y:0, w:14, h:14, hp:3, maxHp:3, dir:-1, alive:true, speed:38, hopT:Math.random(), hitFlash:0},
+      {kind:'walker', x:2100, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:52, animT:0, hitFlash:0},
+      {kind:'walker', x:2150, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:52, animT:0, hitFlash:0},
+      {kind:'flyer', x:2710, y:28, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:28, t:Math.random()*10, hitFlash:0},
+      {kind:'walker', x:2790, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:52, animT:0, hitFlash:0},
+      {kind:'walker', x:2870, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:54, animT:0, hitFlash:0},
+      {kind:'walker', x:2920, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:54, animT:0, hitFlash:0},
+      {kind:'hopper', x:2950, y:0, w:14, h:14, hp:3, maxHp:3, dir:-1, alive:true, speed:40, hopT:Math.random(), hitFlash:0},
+      {kind:'flyer', x:3150, y:26, w:12, h:10, hp:3, maxHp:3, dir:-1, alive:true, baseY:26, t:Math.random()*10, hitFlash:0},
+      {kind:'walker', x:3200, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:56, animT:0, hitFlash:0},
+      {kind:'hopper', x:3230, y:0, w:14, h:14, hp:3, maxHp:3, dir:-1, alive:true, speed:42, hopT:Math.random(), hitFlash:0},
+      {kind:'walker', x:3280, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:56, animT:0, hitFlash:0},
+      {kind:'walker', x:3350, y:0, w:14, h:16, hp:3, maxHp:3, dir:-1, alive:true, speed:58, animT:0, hitFlash:0},
+    ];
+  }
+
+  // Stage 3 has no regular enemies — it's the final boss alone.
+  function makeStage3Enemies(){ return []; }
+
+  const STAGES = [
+    {
+      len: 3200,
+      segments: STAGE1_SEGMENTS,
+      bossX: 3200 - 220,
+      bossHp: 14,
+      bossAtkInterval: 0.9,
+      bossBulletSpeed: 92,
+      bossMoveSpeed: 20,
+      makeEnemies: makeStage1Enemies,
+      makeArmorPickups: () => [{x:1160,taken:false},{x:2000,taken:false},{x:2600,taken:false}],
+      makeWeaponPickups: () => [{x:500,taken:false,kind:'axe'}],
+    },
+    {
+      len: 3600,
+      segments: STAGE2_SEGMENTS,
+      bossX: 3600 - 220,
+      bossHp: 22,
+      bossAtkInterval: 0.6,
+      bossBulletSpeed: 110,
+      bossMoveSpeed: 28,
+      makeEnemies: makeStage2Enemies,
+      makeArmorPickups: () => [{x:400,taken:false},{x:1270,taken:false},{x:2050,taken:false},{x:2700,taken:false},{x:3120,taken:false}],
+      makeWeaponPickups: () => [{x:260,taken:false,kind:'axe'}],
+    },
+    {
+      len: 1400,
+      segments: STAGE3_SEGMENTS,
+      bossX: 1400 - 320,
+      isFinalBoss: true,
+      bossMoveSpeed: 40,
+      makeEnemies: makeStage3Enemies,
+      makeArmorPickups: () => [{x:300,taken:false},{x:650,taken:false}],
+      makeWeaponPickups: () => [{x:480,taken:false,kind:'axe'}],
+    },
+  ];
+
+  let stageIndex = 0;
+  let STAGE_LEN, segments, BOSS_X, armorPickups;
+
+  function loadStage(){
+    const stage = STAGES[stageIndex];
+    STAGE_LEN = stage.len;
+    segments = stage.segments;
+    BOSS_X = stage.bossX;
+    armorPickups = stage.makeArmorPickups();
+  }
+
+  function groundInfoAt(x){
+    for(const s of segments){ if(x>=s.x1 && x<s.x2) return s; }
+    return null;
+  }
+
+  // ---------- State ----------
+  let state = 'title'; // title, playing, paused, dead, over, stageClear, allClear
+  let cam = 0;
+  let score = 0;
+  let lives = 3;
+  const livesVal = document.getElementById('livesVal');
+  const armorVal = document.getElementById('armorVal');
+  const scoreVal = document.getElementById('scoreVal');
+  const stageVal = document.getElementById('stageVal');
+  const weaponVal = document.getElementById('weaponVal');
+  const attackBtnEl = document.getElementById('attackBtn');
+
+  function newPlayer(){
+    return {
+      x: 40, y: 0, w: 12, h: 18,
+      vx: 0, vy: 0,
+      onGround: true,
+      dir: 1,
+      armored: true,
+      invuln: 0,
+      atkCooldown: 0,
+      animT: 0,
+      dead: false,
+      jumpCount: 0,
+      weapon: 'spear',
+    };
+  }
+  let player, enemies, spears, axes, weaponPickups, bossBullets, boss, deathCause;
+
+  function resetStage(){
+    loadStage();
+    const stage = STAGES[stageIndex];
+    player = newPlayer();
+    enemies = stage.makeEnemies();
+    spears = [];
+    axes = [];
+    weaponPickups = stage.makeWeaponPickups ? stage.makeWeaponPickups() : [];
+    bossBullets = [];
+    if(stage.isFinalBoss){
+      // A large final boss with three independently destructible parts
+      // instead of one HP pool. Each part's offset (ox,oy) is relative to
+      // boss.x/boss.y (ground-relative, negative oy = above ground), the
+      // same convention drawFinalBoss() and bossPartRect() use.
+      boss = {
+        x: BOSS_X, y: 0, w: 44, h: 56,
+        alive: true, awake: false, hitFlash: 0,
+        isFinal: true,
+        dir: -1,
+        moveSpeed: stage.bossMoveSpeed,
+        pattern: 'spread', patternT: 3.2,
+        atkT: 1.2, chargeT: 0, chargeDir: 1,
+        parts: [
+          {id:'leftArm', ox:-23, oy:-16, w:16, h:22, hp:10, maxHp:10, destroyed:false, hitFlash:0},
+          {id:'rightArm', ox:23, oy:-16, w:16, h:22, hp:10, maxHp:10, destroyed:false, hitFlash:0},
+          {id:'head', ox:0, oy:-50, w:22, h:20, hp:12, maxHp:12, destroyed:false, hitFlash:0},
+        ],
+      };
+    } else {
+      boss = {
+        x: BOSS_X, y: 0, w: 28, h: 30,
+        hp: stage.bossHp, maxHp: stage.bossHp,
+        alive:true, awake:false, atkT: 0, dir:-1, hitFlash:0, isFinal: false,
+        moveSpeed: stage.bossMoveSpeed, atkInterval: stage.bossAtkInterval, bulletSpeed: stage.bossBulletSpeed,
+      };
+    }
+    cam = 0;
+  }
+
+  function fullReset(){
+    score = 0; lives = 3; stageIndex = 0;
+    resetStage();
+    updateHud();
+  }
+
+  function updateHud(){
+    livesVal.textContent = lives;
+    scoreVal.textContent = score;
+    stageVal.textContent = `STAGE ${stageIndex+1}`;
+    armorVal.textContent = player.armored ? '🛡️ 装備中' : '👕 丸腰';
+    armorVal.style.color = player.armored ? '' : 'var(--red)';
+    weaponVal.textContent = player.weapon === 'axe' ? '🪓 斧' : '🔱 槍';
+    attackBtnEl.textContent = player.weapon === 'axe' ? '斧' : '槍';
+  }
+
+  // ---------- Input (keyboard + touch pad + gamepad, combined each frame) ----------
+  const held = {left:false, right:false}; // keyboard/touch hold state
+  const keys = {left:false, right:false}; // final combined state, recomputed every frame
+  let jumpPressedEdge = false, attackPressedEdge = false;
+
+  window.addEventListener('keydown', e=>{
+    if(e.repeat) return;
+    if(e.key==='ArrowLeft') held.left = true;
+    if(e.key==='ArrowRight') held.right = true;
+    if(e.key==='ArrowUp' || e.key==='x' || e.key==='X'){ jumpPressedEdge = true; }
+    if(e.key==='z' || e.key==='Z'){ attackPressedEdge = true; }
+    if(e.key==='p' || e.key==='P') togglePause();
+  });
+  window.addEventListener('keyup', e=>{
+    if(e.key==='ArrowLeft') held.left = false;
+    if(e.key==='ArrowRight') held.right = false;
+  });
+  function bindHold(id, onDown, onUp){
+    const el = document.getElementById(id);
+    const down = ev=>{ ev.preventDefault(); onDown(); };
+    const up = ev=>{ ev.preventDefault(); onUp(); };
+    el.addEventListener('touchstart', down, {passive:false});
+    el.addEventListener('touchend', up, {passive:false});
+    el.addEventListener('mousedown', down);
+    el.addEventListener('mouseup', up);
+    el.addEventListener('mouseleave', up);
+  }
+  bindHold('leftBtn', ()=>held.left=true, ()=>held.left=false);
+  bindHold('rightBtn', ()=>held.right=true, ()=>held.right=false);
+  bindHold('jumpBtn', ()=>{jumpPressedEdge=true;}, ()=>{});
+  bindHold('attackBtn', ()=>{attackPressedEdge=true;}, ()=>{});
+
+  // ---------- Gamepad ----------
+  let gpIndex = null;
+  const gp_ = {left:false, right:false};
+  let gpPrevJump=false, gpPrevAttack=false, gpPrevStart=false;
+  const padStatus = document.getElementById('padStatus');
+  window.addEventListener('gamepadconnected', e=>{
+    gpIndex = e.gamepad.index;
+    padStatus.textContent = '🎮 コントローラー接続中: ' + e.gamepad.id;
+    padStatus.classList.remove('off');
+  });
+  window.addEventListener('gamepaddisconnected', e=>{
+    if(gpIndex === e.gamepad.index){
+      gpIndex = null;
+      padStatus.textContent = '🎮 未接続(接続すると自動で使えます)';
+      padStatus.classList.add('off');
+    }
+  });
+  function clickIfOverlayVisible(id){
+    const btn = document.getElementById(id);
+    if(btn) btn.click();
+  }
+  function pollGamepad(){
+    gp_.left = false; gp_.right = false;
+    if(gpIndex===null || !navigator.getGamepads) return;
+    const gp = navigator.getGamepads()[gpIndex];
+    if(!gp) return;
+    ensureAudio();
+    const axis = gp.axes && gp.axes.length ? gp.axes[0] : 0;
+    const dpadLeft = !!(gp.buttons[14] && gp.buttons[14].pressed);
+    const dpadRight = !!(gp.buttons[15] && gp.buttons[15].pressed);
+    gp_.left = dpadLeft || axis < -0.35;
+    gp_.right = dpadRight || axis > 0.35;
+
+    const jumpBtn = !!(gp.buttons[0] && gp.buttons[0].pressed);
+    const attackBtn = !!((gp.buttons[2] && gp.buttons[2].pressed) || (gp.buttons[1] && gp.buttons[1].pressed));
+    if(jumpBtn && !gpPrevJump) jumpPressedEdge = true;
+    gpPrevJump = jumpBtn;
+    if(attackBtn && !gpPrevAttack) attackPressedEdge = true;
+    gpPrevAttack = attackBtn;
+
+    const startBtn = !!(gp.buttons[9] && gp.buttons[9].pressed);
+    if(startBtn && !gpPrevStart){
+      if(state==='title') clickIfOverlayVisible('startBtn');
+      else if(state==='dead') clickIfOverlayVisible('continueBtn');
+      else if(state==='over') clickIfOverlayVisible('retryBtn');
+      else if(state==='stageClear' || state==='allClear') clickIfOverlayVisible('clearRetryBtn');
+      else if(state==='playing' || state==='paused') togglePause();
+    }
+    gpPrevStart = startBtn;
+  }
+
+  // ---------- Game logic ----------
+  const GRAVITY = 520;
+  const MOVE_SPEED = 80;
+  const JUMP_V = -260;
+  const MAX_JUMPS = 2;
+  // Minimum height (ground-relative, negative = above ground) the double jump
+  // launches from, even if pressed immediately after the first jump — keeps
+  // the double jump's horizontal range consistent regardless of input timing.
+  const DOUBLE_JUMP_MIN_Y = -28;
+
+  const SPEAR_SPEED = 220;
+  const SPEAR_LIFE = 0.5; // range = 220*0.5 = 110px (less than half the old 264px range)
+  const AXE_VX = 230;
+  const AXE_VY = -107; // a flatter arc (apex ~11px above launch) than earlier versions:
+  // a high lob spends nearly its whole flight sailing over a grounded
+  // enemy's head and is only hittable right at launch and right at landing
+  // (verified by tracing the trajectory frame-by-frame). This flatter arc
+  // stays within hitting range of a grounded enemy for roughly half its
+  // flight, while still visibly arcing (unlike the spear's straight throw).
+  // Range ~115-120px, close to the spear's ~110-114px.
+  const AXE_DAMAGE = 1.5;
+
+  function throwSpear(){
+    if(player.atkCooldown>0) return;
+    ensureAudio();
+    // y offset matches the spear-arm sprite height in drawKnight (ground-relative, negative = above ground)
+    spears.push({x: player.x + (player.dir>0?player.w:-6), y: player.y-15, dir: player.dir, life: SPEAR_LIFE});
+    player.atkCooldown = 0.32;
+    sfx.throw();
+  }
+
+  function throwAxe(){
+    if(player.atkCooldown>0) return;
+    ensureAudio();
+    axes.push({x: player.x + (player.dir>0?player.w:-6), y: player.y-15, vx: AXE_VX*player.dir, vy: AXE_VY, dir: player.dir, spin: 0});
+    player.atkCooldown = 0.42;
+    sfx.throw();
+  }
+
+  function throwWeapon(){
+    if(player.weapon === 'axe') throwAxe();
+    else throwSpear();
+  }
+
+  function hurtPlayer(cause){
+    if(player.invuln>0 || player.dead) return;
+    ensureAudio();
+    if(player.armored){
+      player.armored = false;
+      player.invuln = 1.0;
+      sfx.hit();
+      updateHud();
+    } else {
+      player.dead = true;
+      deathCause = cause;
+      sfx.dead();
+      loseLife();
+    }
+  }
+
+  const DEATH_MSG = {
+    enemy: '敵に触れてしまった。',
+    pit: '落とし穴に落ちてしまった。',
+    boss: 'ボスの攻撃を受けてしまった。',
+  };
+
+  function loseLife(){
+    lives -= 1;
+    updateHud();
+    stopBgm();
+    const reason = DEATH_MSG[deathCause] || '';
+    setTimeout(()=>{
+      if(lives<=0){
+        state = 'over';
+        document.getElementById('overMsg').textContent = `${reason} スコア: ${score}`;
+        document.getElementById('overOverlay').hidden = false;
+      } else {
+        state = 'dead';
+        document.getElementById('deadMsg').textContent = `${reason} 残機 ${lives}。同じステージに再挑戦。`;
+        document.getElementById('deadOverlay').hidden = false;
+      }
+    }, 500);
+  }
+
+  function update(dt){
+    if(state !== 'playing' || player.dead) return;
+
+    // player horizontal (keyboard/touch + gamepad combined)
+    keys.left = held.left || gp_.left;
+    keys.right = held.right || gp_.right;
+    let moveDir = 0;
+    if(keys.left){ moveDir -= 1; player.dir = -1; }
+    if(keys.right){ moveDir += 1; player.dir = 1; }
+    player.vx = moveDir * MOVE_SPEED;
+
+    if(jumpPressedEdge && player.jumpCount < MAX_JUMPS){
+      if(player.jumpCount === 1){
+        // launching the double jump too soon after the first would cut its
+        // range short; guarantee it always starts from at least this height
+        player.y = Math.min(player.y, DOUBLE_JUMP_MIN_Y);
+      }
+      player.vy = JUMP_V;
+      player.onGround = false;
+      player.jumpCount++;
+      if(player.jumpCount >= 2) sfx.doubleJump(); else sfx.jump();
+    }
+    jumpPressedEdge = false;
+
+    if(attackPressedEdge){ throwWeapon(); }
+    attackPressedEdge = false;
+
+    if(player.atkCooldown>0) player.atkCooldown -= dt;
+    if(player.invuln>0) player.invuln -= dt;
+
+    // gravity
+    player.vy += GRAVITY * dt;
+    let nx = player.x + player.vx*dt;
+    let ny = player.y + player.vy*dt;
+    nx = Math.max(0, Math.min(STAGE_LEN-player.w, nx));
+
+    // Simple wall check: a platform taller than the player's current height
+    // blocks horizontal entry from its side, so a raised platform has to be
+    // reached by jumping up onto it rather than just walked into.
+    const leadEdge = player.vx > 0 ? nx + player.w : nx;
+    const aheadSeg = groundInfoAt(leadEdge);
+    if(aheadSeg && aheadSeg.type === 'floor' && player.y > aheadSeg.elev + 2){
+      nx = player.x;
+    }
+
+    // ground collision using segments (elev is the floor height, 0 = normal
+    // ground level; positive y = below ground = pit fall)
+    const groundSeg = groundInfoAt(nx + player.w/2);
+    const groundLevel = (groundSeg && groundSeg.type==='floor') ? groundSeg.elev : null;
+    if(groundLevel !== null && ny >= groundLevel){
+      ny = groundLevel;
+      player.vy = 0;
+      player.onGround = true;
+      player.jumpCount = 0;
+    } else {
+      player.onGround = false;
+    }
+    player.x = nx; player.y = ny;
+    player.animT += dt;
+
+    // fell into pit
+    if(player.y > 60){
+      hurtPlayerInstant();
+    }
+
+    // spears
+    for(const s of spears){
+      s.x += s.dir * SPEAR_SPEED * dt;
+      s.life -= dt;
+    }
+    spears = spears.filter(s=>s.life>0);
+
+    // axes: thrown in a gravity arc, longer range than the spear. Landing
+    // (a.y>=0) is only marked here and removed later, after the enemy/boss
+    // hit checks below run — removing it here first would let an axe that
+    // lands exactly on a grounded enemy skip its hit check for that frame.
+    for(const a of axes){
+      a.vy += GRAVITY * dt;
+      a.x += a.vx * dt;
+      a.y += a.vy * dt;
+      a.spin += dt * 16;
+    }
+
+    // armor pickups
+    for(const a of armorPickups){
+      if(!a.taken && Math.abs(player.x - a.x) < 12 && !player.armored){
+        a.taken = true;
+        player.armored = true;
+        sfx.armorUp();
+        updateHud();
+      }
+    }
+
+    // weapon pickups
+    for(const w of weaponPickups){
+      if(!w.taken && Math.abs(player.x - w.x) < 12){
+        w.taken = true;
+        player.weapon = w.kind;
+        sfx.armorUp();
+        updateHud();
+      }
+    }
+
+    // enemies
+    for(const en of enemies){
+      if(!en.alive) continue;
+      if(en.hitFlash>0) en.hitFlash -= dt;
+      if(en.kind==='walker'){
+        en.animT += dt;
+        const dx = player.x - en.x;
+        if(Math.abs(dx) < 160){
+          en.dir = dx>0?1:-1;
+          en.x += en.dir * en.speed * dt;
+        }
+      } else if(en.kind==='flyer'){
+        en.t += dt;
+        en.y = en.baseY + Math.sin(en.t*3)*10;
+        const dx = player.x - en.x;
+        if(Math.abs(dx) < 180){
+          en.x += (dx>0?1:-1) * 46 * dt;
+        }
+      } else if(en.kind==='hopper'){
+        // hops in place repeatedly, lunging forward only at the peak of each
+        // hop — a very different rhythm from the walker's steady shuffle.
+        en.hopT += dt;
+        const cycle = 0.9;
+        const phase = (en.hopT % cycle) / cycle;
+        en.y = Math.sin(phase * Math.PI) * 32;
+        const dx = player.x - en.x;
+        if(Math.abs(dx) < 170){
+          en.dir = dx>0?1:-1;
+          if(phase > 0.25 && phase < 0.75) en.x += en.dir * en.speed * dt;
+        }
+      }
+      // collide with player (hitbox matches the drawn sprite, centered on en.x)
+      const er = enemyRect(en);
+      if(rectsOverlap(player.x,player.y-player.h,player.w,player.h, er.x,er.y,er.w,er.h)){
+        hurtPlayer('enemy');
+      }
+      // collide with spears
+      for(const s of spears){
+        if(rectsOverlap(s.x-2,s.y-2,4,4, er.x,er.y,er.w,er.h)){
+          s.life = 0;
+          en.hp -= 1;
+          en.hitFlash = 0.15;
+          if(en.hp <= 0){
+            en.alive = false;
+            score += 100;
+            sfx.enemyDown();
+          } else {
+            sfx.bossHit();
+          }
+          updateHud();
+        }
+      }
+      // collide with axes (hits 1.5x as hard as the spear; a slightly
+      // larger hitbox than the spear's, since the axe's arc gives it less
+      // time lined up with a grounded enemy)
+      for(const a of axes){
+        if(!a.dead && rectsOverlap(a.x-5,a.y-5,10,10, er.x,er.y,er.w,er.h)){
+          a.dead = true;
+          en.hp -= AXE_DAMAGE;
+          en.hitFlash = 0.15;
+          if(en.hp <= 0){
+            en.alive = false;
+            score += 100;
+            sfx.enemyDown();
+          } else {
+            sfx.bossHit();
+          }
+          updateHud();
+        }
+      }
+    }
+    enemies = enemies.filter(en=>en.alive);
+
+    // boss
+    if(boss.alive){
+      if(!boss.awake && player.x > BOSS_X - 140){
+        boss.awake = true;
+      }
+      if(boss.awake){
+        if(boss.isFinal){
+          updateFinalBoss(dt);
+        } else {
+          boss.dir = (player.x < boss.x) ? -1 : 1;
+          boss.x += boss.dir * boss.moveSpeed * dt;
+          boss.atkT -= dt;
+          if(boss.atkT <= 0){
+            bossBullets.push({x: boss.x, y: boss.y-18, dir: player.x<boss.x?-1:1, vy:-10, speed: boss.bulletSpeed});
+            boss.atkT = boss.atkInterval;
+          }
+          if(boss.hitFlash>0) boss.hitFlash -= dt;
+
+          if(rectsOverlap(player.x,player.y-player.h,player.w,player.h, boss.x-boss.w/2,boss.y-boss.h,boss.w,boss.h)){
+            hurtPlayer('boss');
+          }
+          for(const s of spears){
+            if(rectsOverlap(s.x-2,s.y-2,4,4, boss.x-boss.w/2,boss.y-boss.h,boss.w,boss.h)){
+              s.life = 0;
+              boss.hp -= 1;
+              boss.hitFlash = 0.15;
+              sfx.bossHit();
+              if(boss.hp<=0){
+                boss.alive = false;
+                score += 1000;
+                updateHud();
+                triggerClear();
+              }
+            }
+          }
+          for(const a of axes){
+            if(!a.dead && rectsOverlap(a.x-5,a.y-5,10,10, boss.x-boss.w/2,boss.y-boss.h,boss.w,boss.h)){
+              a.dead = true;
+              boss.hp -= AXE_DAMAGE;
+              boss.hitFlash = 0.15;
+              sfx.bossHit();
+              if(boss.hp<=0){
+                boss.alive = false;
+                score += 1000;
+                updateHud();
+                triggerClear();
+              }
+            }
+          }
+        }
+      }
+    }
+    for(const b of bossBullets){
+      // vx (signed) covers angled shots; older single-direction bullets fall
+      // back to dir*speed so both bullet styles share one update loop
+      b.x += (b.vx !== undefined ? b.vx : b.dir*b.speed) * dt;
+      b.y += b.vy * dt;
+      if(!b.noGrav) b.vy += 40*dt;
+      if(rectsOverlap(player.x,player.y-player.h,player.w,player.h, b.x-3,b.y-3,6,6)){
+        hurtPlayer('boss');
+        b.dead = true;
+      }
+    }
+    bossBullets = bossBullets.filter(b=>!b.dead && b.y < 120);
+    // now that all hit checks against enemies/boss have run this frame,
+    // remove axes that either hit something (a.dead) or landed (a.y>=0)
+    axes = axes.filter(a => !a.dead && a.y < 0);
+
+    // camera
+    const targetCam = Math.max(0, Math.min(STAGE_LEN - W, player.x - W/2));
+    cam += (targetCam - cam) * Math.min(1, dt*6);
+  }
+
+  // ---------- Final boss (stage 3): three independently destructible parts ----------
+  // Part offsets (ox,oy) are relative to boss.x/boss.y using the same
+  // ground-relative convention as everything else (oy negative = above
+  // ground). bossPartRect() turns that into a screen-independent AABB.
+  function bossPartRect(part){
+    const px = boss.x + part.ox, py = boss.y + part.oy;
+    return {x: px - part.w/2, y: py - part.h, w: part.w, h: part.h};
+  }
+
+  function damageBossPart(part, amount){
+    part.hp -= amount;
+    part.hitFlash = 0.15;
+    sfx.bossHit();
+    if(part.hp <= 0 && !part.destroyed){
+      part.destroyed = true;
+      score += 500;
+      updateHud();
+      if(boss.parts.every(p=>p.destroyed)){
+        boss.alive = false;
+        score += 1000;
+        updateHud();
+        triggerClear();
+      }
+    }
+  }
+
+  function fireBossSpread(ox, oy, dirToPlayer){
+    // four bullets fanned out vertically, all travelling toward the player
+    [-150,-55,45,140].forEach(vy=>{
+      bossBullets.push({x:ox, y:oy, vx: dirToPlayer * (Math.abs(vy)<100 ? 115 : 95), vy});
+    });
+  }
+
+  function updateFinalBoss(dt){
+    const dirToPlayer = player.x < boss.x ? -1 : 1;
+
+    // movement: track the player normally, or lunge during a charge
+    if(boss.pattern === 'charge' && boss.chargeT > 0){
+      boss.chargeDir = dirToPlayer;
+      boss.x += boss.chargeDir * boss.moveSpeed * 3 * dt;
+      boss.chargeT -= dt;
+    } else {
+      boss.dir = dirToPlayer;
+      boss.x += boss.dir * boss.moveSpeed * dt;
+    }
+    boss.x = Math.max(BOSS_X - 260, Math.min(STAGE_LEN - boss.w/2 - 6, boss.x));
+
+    // cycle spread -> barrage -> charge -> repeat; each destroyed part
+    // shortens the cycle, so the fight gets faster as it's worn down
+    boss.patternT -= dt;
+    if(boss.patternT <= 0){
+      const order = ['spread','barrage','charge'];
+      boss.pattern = order[(order.indexOf(boss.pattern)+1) % order.length];
+      const destroyedCount = boss.parts.filter(p=>p.destroyed).length;
+      boss.patternT = Math.max(1.6, 3.2 - destroyedCount*0.5);
+      boss.atkT = 0;
+      if(boss.pattern === 'charge') boss.chargeT = 1.0;
+    }
+
+    if(boss.pattern === 'spread'){
+      boss.atkT -= dt;
+      if(boss.atkT <= 0){
+        const head = boss.parts[2];
+        if(!head.destroyed){
+          fireBossSpread(boss.x+head.ox, boss.y+head.oy-head.h/2, dirToPlayer);
+        }
+        boss.atkT = 0.75;
+      }
+    } else if(boss.pattern === 'barrage'){
+      boss.atkT -= dt;
+      if(boss.atkT <= 0){
+        const arms = [boss.parts[0], boss.parts[1]].filter(p=>!p.destroyed);
+        if(arms.length){
+          const arm = arms[Math.floor(Math.random()*arms.length)];
+          const ox = boss.x+arm.ox, oy = boss.y+arm.oy-arm.h/2;
+          const d = player.x < ox ? -1 : 1;
+          bossBullets.push({x:ox, y:oy, vx:d*170, vy:-30});
+        }
+        boss.atkT = 0.16;
+      }
+    }
+    // charge deals its damage through the normal body-contact check below
+
+    if(boss.hitFlash>0) boss.hitFlash -= dt;
+
+    // contact damage from the boss's core body (always present)
+    if(rectsOverlap(player.x,player.y-player.h,player.w,player.h, boss.x-boss.w/2,boss.y-boss.h,boss.w,boss.h)){
+      hurtPlayer('boss');
+    }
+
+    // spear/axe hits are resolved per living part
+    for(const part of boss.parts){
+      if(part.destroyed) continue;
+      if(part.hitFlash>0) part.hitFlash -= dt;
+      const pr = bossPartRect(part);
+      for(const s of spears){
+        if(rectsOverlap(s.x-2,s.y-2,4,4, pr.x,pr.y,pr.w,pr.h)){
+          s.life = 0;
+          damageBossPart(part, 1);
+        }
+      }
+      for(const a of axes){
+        if(!a.dead && rectsOverlap(a.x-5,a.y-5,10,10, pr.x,pr.y,pr.w,pr.h)){
+          a.dead = true;
+          damageBossPart(part, AXE_DAMAGE);
+        }
+      }
+    }
+  }
+
+  function hurtPlayerInstant(){
+    if(player.dead) return;
+    player.dead = true;
+    deathCause = 'pit';
+    sfx.dead();
+    loseLife();
+  }
+
+  function triggerClear(){
+    ensureAudio();
+    stopBgm();
+    sfx.clear();
+    const isFinalStage = stageIndex >= STAGES.length - 1;
+    state = isFinalStage ? 'allClear' : 'stageClear';
+    document.getElementById('clearTitle').textContent = isFinalStage ? 'ALL CLEAR!' : `STAGE ${stageIndex+1} CLEAR!`;
+    document.getElementById('clearMsg').textContent = isFinalStage
+      ? `全ステージクリア！ スコア: ${score}`
+      : `スコア: ${score}`;
+    document.getElementById('clearRetryBtn').textContent = isFinalStage ? 'もう一度最初から' : 'つぎのステージへ';
+    document.getElementById('clearOverlay').hidden = false;
+  }
+
+  function rectsOverlap(ax,ay,aw,ah,bx,by,bw,bh){
+    return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+  }
+
+  // Hitbox aligned to how each enemy kind is actually drawn (both centered on en.x).
+  function enemyRect(en){
+    if(en.kind==='walker'){
+      return {x: en.x-en.w/2, y: en.y-en.h, w: en.w, h: en.h};
+    }
+    if(en.kind==='hopper'){
+      // en.y is "height above ground" like flyer, but a hopper stands
+      // upright on its feet at that height rather than floating centered.
+      return {x: en.x-en.w/2, y: -en.y-en.h, w: en.w, h: en.h};
+    }
+    // flyer: en.y is "height above ground" (positive = up); convert to the
+    // ground-relative depth axis player/spear use (positive = below ground).
+    return {x: en.x-en.w/2, y: -en.y-en.h/2, w: en.w, h: en.h};
+  }
+
+  // ---------- Drawing (pixel-art via rects) ----------
+  function drawBackground(){
+    const sky = ctx.createLinearGradient(0,0,0,GROUND_Y);
+    sky.addColorStop(0, '#181233');
+    sky.addColorStop(1, '#0c1226');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0,0,W,GROUND_Y+30);
+
+    // twinkling stars
+    const tNow = performance.now();
+    for(let i=0;i<36;i++){
+      const sxp = (i*173) % W;
+      const syp = 6 + (i*59) % (GROUND_Y-30);
+      const tw = 0.4 + 0.4*Math.sin(tNow/450 + i*1.7);
+      ctx.globalAlpha = Math.max(0, tw);
+      ctx.fillStyle = '#e8e0ff';
+      ctx.fillRect(sxp, syp, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // moon with crescent shadow
+    ctx.fillStyle = '#ffe9a8';
+    ctx.beginPath();
+    ctx.arc(W-42, 30, 13, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#181233';
+    ctx.beginPath();
+    ctx.arc(W-36, 25, 13, 0, Math.PI*2);
+    ctx.fill();
+
+    // far hills
+    ctx.fillStyle = '#171a38';
+    for(let i=0;i<6;i++){
+      const bx = ((i*260) - cam*0.2) % (W+260) - 130;
+      ctx.beginPath();
+      ctx.ellipse(bx, GROUND_Y+22, 150, 46, 0, Math.PI, 0);
+      ctx.fill();
+    }
+    // near hills
+    ctx.fillStyle = '#1e2148';
+    for(let i=0;i<7;i++){
+      const bx = ((i*220+90) - cam*0.45) % (W+220) - 110;
+      ctx.beginPath();
+      ctx.ellipse(bx, GROUND_Y+14, 110, 30, 0, Math.PI, 0);
+      ctx.fill();
+    }
+    // graveyard silhouettes, closest parallax layer
+    ctx.fillStyle = '#262a52';
+    for(let i=0;i<12;i++){
+      const gx = ((i*190+70) - cam*0.7) % (W+190) - 95;
+      ctx.fillRect(gx-4, GROUND_Y-14, 8, 14);
+      ctx.beginPath();
+      ctx.arc(gx, GROUND_Y-14, 4, Math.PI, 0);
+      ctx.fill();
+      if(i%3===0){
+        ctx.save();
+        ctx.translate(gx+14, GROUND_Y-18);
+        ctx.fillRect(-1, 0, 2, 18);
+        ctx.fillRect(-5, 4, 10, 2);
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawGround(){
+    for(let i=0;i<segments.length;i++){
+      const s = segments[i];
+      const sx1 = s.x1 - cam, sx2 = s.x2 - cam;
+      if(sx2 < 0 || sx1 > W) continue;
+      if(s.type==='floor'){
+        const topY = GROUND_Y + s.elev;
+        ctx.fillStyle = '#2b2140';
+        ctx.fillRect(sx1, topY, sx2-sx1, H-topY);
+        ctx.fillStyle = '#4a3a66';
+        ctx.fillRect(sx1, topY, sx2-sx1, 4);
+        // cobblestone joints
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1;
+        const brickW = 16;
+        for(let bx = Math.floor(sx1/brickW)*brickW; bx < sx2; bx += brickW){
+          ctx.beginPath();
+          ctx.moveTo(bx+0.5, topY+5);
+          ctx.lineTo(bx+0.5, H);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.beginPath();
+        ctx.moveTo(sx1, topY+(H-topY)/2+2);
+        ctx.lineTo(sx2, topY+(H-topY)/2+2);
+        ctx.stroke();
+        // side wall against the previous segment, if it sits at a different height
+        const prev = segments[i-1];
+        if(prev && prev.type==='floor' && prev.elev !== s.elev){
+          const prevTopY = GROUND_Y + prev.elev;
+          const wallTop = Math.min(topY, prevTopY);
+          const wallBottom = Math.max(topY, prevTopY);
+          ctx.fillStyle = '#1b1530';
+          ctx.fillRect(sx1-3, wallTop, 3, wallBottom-wallTop);
+          ctx.fillStyle = '#3a2d54';
+          ctx.fillRect(sx1-3, wallTop, 3, 3);
+        }
+      } else {
+        ctx.fillStyle = '#060911';
+        ctx.fillRect(sx1, GROUND_Y, sx2-sx1, H-GROUND_Y);
+        ctx.fillStyle = '#1c0a16';
+        ctx.fillRect(sx1, GROUND_Y, sx2-sx1, 3);
+      }
+    }
+  }
+
+  function drawKnight(px, py, dir, armored, animT, moving, dead){
+    // py is feet position (screen-space)
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(dir, 1);
+    const walk = moving ? Math.sin(animT*11) : 0;
+    const lead = walk*2.2;
+    const bodyColor = armored ? '#c9cdd8' : '#e0a06a';
+    const bodyShade = armored ? '#9aa0ba' : '#b87850';
+    const trimColor = armored ? '#5468c9' : '#8a4a24';
+    const skin = '#f0c090';
+
+    // ground shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, 1, 7, 2, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // cape (armored only), trails behind on movement
+    if(armored){
+      ctx.fillStyle = '#7a2d4a';
+      ctx.fillRect(-7, -19, 3, 13+Math.abs(lead));
+    }
+
+    // back leg
+    ctx.fillStyle = bodyShade;
+    ctx.fillRect(-3, -9-lead, 3, 9+lead);
+    // front leg
+    ctx.fillStyle = '#332c48';
+    ctx.fillRect(0, -9+lead, 3, 9-lead);
+    // boots
+    ctx.fillStyle = '#1c1628';
+    ctx.fillRect(-3, -1-lead, 3, 2);
+    ctx.fillRect(0, -1+lead, 3, 2);
+
+    // torso
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-5, -19, 9, 11);
+    // trim / belt
+    ctx.fillStyle = trimColor;
+    ctx.fillRect(-5, -19, 9, 3);
+    ctx.fillRect(-5, -10, 9, 2);
+    // shoulder pad
+    ctx.fillStyle = bodyShade;
+    ctx.fillRect(-6, -19, 3, 4);
+
+    // head
+    ctx.fillStyle = armored ? '#dfe3ee' : skin;
+    ctx.fillRect(-3, -23, 7, 5);
+    if(armored){
+      ctx.fillStyle = '#ff5c5c';
+      ctx.fillRect(-2, -26, 3, 3);
+      ctx.fillStyle = '#1a1e2c';
+      ctx.fillRect(1, -21, 3, 1);
+    } else {
+      ctx.fillStyle = '#5a3a24';
+      ctx.fillRect(-3, -24, 7, 2);
+      ctx.fillStyle = '#1a1e2c';
+      ctx.fillRect(2, -21, 2, 1);
+    }
+
+    // arm + spear
+    ctx.fillStyle = skin;
+    ctx.fillRect(3, -17, 3, 6);
+    ctx.fillStyle = '#8a8a90';
+    ctx.fillRect(5, -16, 8, 2);
+    ctx.fillStyle = '#e8e8ec';
+    ctx.beginPath();
+    ctx.moveTo(13, -17);
+    ctx.lineTo(16, -15);
+    ctx.lineTo(13, -13);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawEnemy(en){
+    const sx = en.x - cam;
+    if(sx < -20 || sx > W+20) return;
+    const flash = en.hitFlash > 0;
+    if(en.kind==='walker'){
+      const bx = sx - en.w/2, by = GROUND_Y - en.h;
+      const shuffle = Math.sin(en.animT*6)*1;
+      // shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(sx, GROUND_Y+1, en.w/2, 2, 0, 0, Math.PI*2);
+      ctx.fill();
+      // reaching arms
+      ctx.fillStyle = flash ? '#f0f0f0' : '#3d5230';
+      ctx.fillRect(bx-3, by+7+shuffle, 3, 6);
+      ctx.fillRect(bx+en.w, by+7-shuffle, 3, 6);
+      // tattered robe body
+      ctx.fillStyle = flash ? '#ffffff' : '#5c7a4a';
+      ctx.fillRect(bx, by+3, en.w, en.h-3);
+      ctx.fillStyle = flash ? '#f0f0f0' : '#3d5230';
+      ctx.fillRect(bx, by+en.h-5, en.w, 3);
+      ctx.fillRect(bx+2, by+en.h, 3, 2);
+      ctx.fillRect(bx+en.w-5, by+en.h, 3, 2);
+      // head
+      ctx.fillStyle = flash ? '#ffffff' : '#7a9a68';
+      ctx.fillRect(bx+2, by, en.w-4, 5);
+      // glowing eyes
+      ctx.fillStyle = '#ffcf4d';
+      ctx.fillRect(bx+2, by+2, 2, 2);
+      ctx.fillRect(bx+en.w-4, by+2, 2, 2);
+      // HP pip so a damaged-but-alive walker reads clearly
+      if(en.hp < en.maxHp){
+        ctx.fillStyle = '#ff5c5c';
+        ctx.fillRect(bx, by-4, en.w, 2);
+        ctx.fillStyle = '#4dff8f';
+        ctx.fillRect(bx, by-4, en.w*Math.max(0,en.hp/en.maxHp), 2);
+      }
+    } else if(en.kind==='hopper'){
+      // en.y is "height above ground"; a squash-and-stretch hop cycle gives
+      // it a bouncy rhythm that reads very differently from the walker.
+      const sy = GROUND_Y - en.y;
+      const airborne = en.y > 3;
+      const squashX = airborne ? 0.85 : 1.25;
+      const squashY = airborne ? 1.15 : 0.8;
+      const bw2 = en.w * squashX, bh2 = en.h * squashY;
+      const bx = sx - bw2/2, by = sy - bh2;
+      // shadow shrinks the higher it hops
+      const shadowScale = Math.max(0.3, 1 - en.y/36);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(sx, GROUND_Y+1, en.w/2*shadowScale, 2*shadowScale, 0, 0, Math.PI*2);
+      ctx.fill();
+      // hind legs, only visible when landed (crouched to spring)
+      ctx.fillStyle = flash ? '#f0f0f0' : '#3a2038';
+      if(!airborne){
+        ctx.fillRect(bx-2, by+bh2-3, 4, 4);
+        ctx.fillRect(bx+bw2-2, by+bh2-3, 4, 4);
+      }
+      // squashed body
+      ctx.fillStyle = flash ? '#ffffff' : '#6a3a5a';
+      ctx.fillRect(bx, by, bw2, bh2);
+      ctx.fillStyle = flash ? '#f0f0f0' : '#4a2440';
+      ctx.fillRect(bx, by+bh2-4, bw2, 4);
+      // eyes
+      ctx.fillStyle = '#ffcf4d';
+      ctx.fillRect(bx+2, by+2, 2, 2);
+      ctx.fillRect(bx+bw2-4, by+2, 2, 2);
+      if(en.hp < en.maxHp){
+        ctx.fillStyle = '#ff5c5c';
+        ctx.fillRect(sx-en.w/2, sy-en.h-6, en.w, 2);
+        ctx.fillStyle = '#4dff8f';
+        ctx.fillRect(sx-en.w/2, sy-en.h-6, en.w*Math.max(0,en.hp/en.maxHp), 2);
+      }
+    } else {
+      // en.y is "height above ground"; convert to screen space for drawing.
+      const sy = GROUND_Y - en.y;
+      const flap = Math.sin(en.t*11)*4;
+      ctx.fillStyle = flash ? '#f0d0e8' : '#4a2542';
+      ctx.beginPath();
+      ctx.moveTo(sx-2, sy-1);
+      ctx.lineTo(sx-en.w/2-5, sy-flap);
+      ctx.lineTo(sx-2, sy+3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(sx+2, sy-1);
+      ctx.lineTo(sx+en.w/2+5, sy-flap);
+      ctx.lineTo(sx+2, sy+3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = flash ? '#ffffff' : '#7a4a6a';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy, en.w/2, en.h/2, 0, 0, Math.PI*2);
+      ctx.fill();
+      if(en.hp < en.maxHp){
+        ctx.fillStyle = '#ff5c5c';
+        ctx.fillRect(sx-en.w/2, sy-en.h/2-4, en.w, 2);
+        ctx.fillStyle = '#4dff8f';
+        ctx.fillRect(sx-en.w/2, sy-en.h/2-4, en.w*Math.max(0,en.hp/en.maxHp), 2);
+      }
+      ctx.fillStyle = '#ffcf4d';
+      ctx.fillRect(sx-3,sy-2,2,2);
+      ctx.fillRect(sx+1,sy-2,2,2);
+    }
+  }
+
+  function drawFinalBoss(){
+    if(!boss.alive) return;
+    const sx = boss.x - cam;
+    if(sx < -100 || sx > W+100) return;
+    const breathe = boss.awake ? Math.sin(performance.now()/260)*1.5 : 0;
+    const by = GROUND_Y - boss.h + breathe;
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath();
+    ctx.ellipse(sx, GROUND_Y+2, boss.w/2+4, 5, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // core: always present regardless of which parts are destroyed
+    const coreFlash = boss.hitFlash > 0;
+    ctx.fillStyle = coreFlash ? '#ffffff' : '#3a1a34';
+    ctx.fillRect(sx-boss.w/2, by, boss.w, boss.h-breathe);
+    ctx.fillStyle = coreFlash ? '#ffdddd' : '#20101f';
+    ctx.fillRect(sx-boss.w/2+6, by+16, boss.w-12, boss.h-26);
+    ctx.fillStyle = '#ff5c5c';
+    ctx.fillRect(sx-9, by+20, 5,5);
+    ctx.fillRect(sx+4, by+20, 5,5);
+    ctx.fillStyle = '#1a1e2c';
+    ctx.fillRect(sx-8, by+21, 3,3);
+    ctx.fillRect(sx+5, by+21, 3,3);
+
+    // parts, drawn relative to the core; each vanishes once destroyed
+    for(const part of boss.parts){
+      if(part.destroyed) continue;
+      const px = sx + part.ox;
+      const py = GROUND_Y + boss.y + part.oy + breathe;
+      const flash = part.hitFlash > 0;
+      if(part.id === 'head'){
+        ctx.fillStyle = flash ? '#ffffff' : '#5a2a4a';
+        ctx.fillRect(px-part.w/2, py-part.h, part.w, part.h);
+        ctx.fillStyle = '#e8e0c8';
+        ctx.beginPath();
+        ctx.moveTo(px-part.w/2+3, py-part.h+2);
+        ctx.lineTo(px-part.w/2-3, py-part.h-9);
+        ctx.lineTo(px-part.w/2+8, py-part.h+3);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px+part.w/2-3, py-part.h+2);
+        ctx.lineTo(px+part.w/2+3, py-part.h-9);
+        ctx.lineTo(px+part.w/2-8, py-part.h+3);
+        ctx.fill();
+        ctx.fillStyle = flash ? '#ffdddd' : '#ffcf4d';
+        ctx.fillRect(px-6, py-part.h+6, 4,4);
+        ctx.fillRect(px+2, py-part.h+6, 4,4);
+      } else {
+        ctx.fillStyle = flash ? '#ffffff' : '#4a2440';
+        ctx.fillRect(px-part.w/2, py-part.h, part.w, part.h);
+        ctx.fillStyle = flash ? '#ffffff' : '#e8e0c8';
+        ctx.fillRect(px-part.w/2-2, py-part.h-3, part.w+4, 6);
+      }
+    }
+
+    // three part HP bars across the top of the screen
+    const bw = 88, gap = 6;
+    const totalW = bw*3 + gap*2;
+    let bx0 = W/2 - totalW/2;
+    ['leftArm','head','rightArm'].forEach(id=>{
+      const part = boss.parts.find(p=>p.id===id);
+      ctx.fillStyle = '#222';
+      ctx.fillRect(bx0, 8, bw, 5);
+      if(!part.destroyed){
+        ctx.fillStyle = '#ff5c5c';
+        ctx.fillRect(bx0, 8, bw*(part.hp/part.maxHp), 5);
+      }
+      bx0 += bw + gap;
+    });
+  }
+
+  function drawBoss(){
+    if(!boss.alive) return;
+    const sx = boss.x - cam;
+    if(sx < -60 || sx > W+60) return;
+    const breathe = boss.awake ? Math.sin(performance.now()/280)*1 : 0;
+    const by = GROUND_Y - boss.h + breathe;
+    ctx.save();
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(sx, GROUND_Y+2, boss.w/2, 4, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    const bodyCol = boss.hitFlash>0 ? '#ffffff' : '#5a2a4a';
+    const bellyCol = boss.hitFlash>0 ? '#ffdddd' : '#33142c';
+    // horns
+    ctx.fillStyle = '#e8e0c8';
+    ctx.beginPath();
+    ctx.moveTo(sx-boss.w/2+3, by+2);
+    ctx.lineTo(sx-boss.w/2-3, by-9);
+    ctx.lineTo(sx-boss.w/2+7, by+3);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(sx+boss.w/2-3, by+2);
+    ctx.lineTo(sx+boss.w/2+3, by-9);
+    ctx.lineTo(sx+boss.w/2-7, by+3);
+    ctx.fill();
+    // body
+    ctx.fillStyle = bodyCol;
+    ctx.fillRect(sx-boss.w/2, by, boss.w, boss.h-breathe);
+    // belly plate
+    ctx.fillStyle = bellyCol;
+    ctx.fillRect(sx-boss.w/2+5, by+10, boss.w-10, boss.h-16);
+    // eyes
+    ctx.fillStyle = '#ffcf4d';
+    ctx.fillRect(sx-7, by+6, 4,4);
+    ctx.fillRect(sx+3, by+6, 4,4);
+    ctx.fillStyle = '#1a1e2c';
+    ctx.fillRect(sx-6, by+7, 2,2);
+    ctx.fillRect(sx+4, by+7, 2,2);
+    // claws
+    ctx.fillStyle = bodyCol;
+    ctx.fillRect(sx-boss.w/2-2, by+boss.h-10, 3, 5);
+    ctx.fillRect(sx+boss.w/2-1, by+boss.h-10, 3, 5);
+    ctx.restore();
+    // boss HP bar
+    if(boss.awake){
+      const bw = 120;
+      ctx.fillStyle = '#222';
+      ctx.fillRect(W/2-bw/2, 10, bw, 6);
+      ctx.fillStyle = '#ff5c5c';
+      ctx.fillRect(W/2-bw/2, 10, bw*(boss.hp/boss.maxHp), 6);
+    }
+  }
+
+  function render(){
+    drawBackground();
+    drawGround();
+
+    // armor pickups
+    for(const a of armorPickups){
+      if(a.taken) continue;
+      const sx = a.x - cam;
+      if(sx<-20||sx>W+20) continue;
+      ctx.fillStyle = '#8fa0ff';
+      ctx.fillRect(sx-4, GROUND_Y-14, 8, 10);
+      ctx.fillStyle = '#dfe3ee';
+      ctx.fillRect(sx-2, GROUND_Y-14, 4, 4);
+    }
+
+    // weapon pickups (axe)
+    for(const w of weaponPickups){
+      if(w.taken) continue;
+      const sx = w.x - cam;
+      if(sx<-20||sx>W+20) continue;
+      const bob = Math.sin(performance.now()/300)*2;
+      ctx.save();
+      ctx.translate(sx, GROUND_Y-12+bob);
+      ctx.fillStyle = '#c9a06a';
+      ctx.fillRect(-1, -6, 2, 10);
+      ctx.fillStyle = '#d8d8e0';
+      ctx.beginPath();
+      ctx.moveTo(0, -8);
+      ctx.lineTo(6, -4);
+      ctx.lineTo(0, 2);
+      ctx.lineTo(-2, -3);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    for(const en of enemies) drawEnemy(en);
+    if(boss.isFinal) drawFinalBoss(); else drawBoss();
+
+    // spears
+    ctx.fillStyle = '#e8e8e8';
+    for(const s of spears){
+      const sx = s.x - cam, sy = GROUND_Y + s.y;
+      ctx.fillRect(sx-4*s.dir, sy-1, 8*s.dir, 2);
+      ctx.fillStyle = '#b8b8c0';
+      ctx.fillRect(sx-1*s.dir, sy-1, 1, 2);
+      ctx.fillStyle = '#e8e8e8';
+    }
+    // axes (spinning, arcing)
+    for(const a of axes){
+      const sx = a.x - cam, sy = GROUND_Y + a.y;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(a.spin);
+      ctx.fillStyle = '#8a6a3a';
+      ctx.fillRect(-1, -6, 2, 12);
+      ctx.fillStyle = '#d8d8e0';
+      ctx.beginPath();
+      ctx.moveTo(1, -5);
+      ctx.lineTo(7, -2);
+      ctx.lineTo(1, 4);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-1, -5);
+      ctx.lineTo(-7, -2);
+      ctx.lineTo(-1, 4);
+      ctx.fill();
+      ctx.restore();
+    }
+    // boss bullets
+    ctx.fillStyle = '#ff9dcf';
+    for(const b of bossBullets){
+      ctx.beginPath();
+      ctx.arc(b.x-cam, GROUND_Y + b.y, 3, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // player
+    if(state==='playing' || state==='dead'){
+      const flashHidden = player.invuln>0 && Math.floor(player.invuln*20)%2===0;
+      if(!flashHidden){
+        drawKnight(player.x-cam, GROUND_Y + player.y, player.dir, player.armored, player.animT, Math.abs(player.vx)>1, player.dead);
+      }
+    }
+  }
+
+  // ---------- Loop ----------
+  let last = performance.now();
+  function loop(now){
+    const dt = Math.min(0.05, (now-last)/1000);
+    last = now;
+    pollGamepad();
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Screen flow ----------
+  document.getElementById('startBtn').addEventListener('click', ()=>{
+    ensureAudio();
+    document.getElementById('titleOverlay').hidden = true;
+    fullReset();
+    state = 'playing';
+    startBgm();
+  });
+  document.getElementById('continueBtn').addEventListener('click', ()=>{
+    document.getElementById('deadOverlay').hidden = true;
+    resetStage();
+    updateHud();
+    state = 'playing';
+    startBgm();
+  });
+  document.getElementById('retryBtn').addEventListener('click', ()=>{
+    document.getElementById('overOverlay').hidden = true;
+    fullReset();
+    state = 'playing';
+    startBgm();
+  });
+  document.getElementById('clearRetryBtn').addEventListener('click', ()=>{
+    document.getElementById('clearOverlay').hidden = true;
+    if(state === 'stageClear'){
+      stageIndex++;
+      resetStage();
+      updateHud();
+    } else {
+      fullReset();
+    }
+    state = 'playing';
+    startBgm();
+  });
+
+  fullReset();
+  requestAnimationFrame(loop);
+})();
+</script>
