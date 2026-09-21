@@ -8,13 +8,54 @@
 <meta name="theme-color" content="#ff7a59">
 <link rel="apple-touch-icon" href="icons/coin-192.png">
 <style>
-  html,body{ margin:0; padding:0; height:100%; overflow:auto; background:#f7d9a0; }
-  body{ display:flex; align-items:flex-start; justify-content:center; -webkit-user-select:none; user-select:none; }
+  html,body{ margin:0; padding:0; min-height:100%; background:#f7d9a0; }
+  body{ display:flex; flex-direction:column; align-items:center; -webkit-user-select:none; user-select:none; }
   canvas{ display:block; width:100%; max-width:648px; height:auto; touch-action:none; cursor:pointer; }
+  .more-games{
+    width:100%; max-width:648px; box-sizing:border-box;
+    padding:18px 16px 28px;
+    font-family: -apple-system, "Hiragino Maru Gothic ProN", sans-serif;
+  }
+  .more-games h2{
+    margin:0 0 12px; font-size:14px; text-align:center;
+    color:#8a5a20; letter-spacing:0.04em;
+  }
+  .game-cards{ display:flex; gap:10px; }
+  .game-card{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:5px;
+    padding:14px 8px; border-radius:14px; text-decoration:none;
+    background:#fffaf0; box-shadow:0 3px 10px rgba(122,74,26,0.15);
+  }
+  .game-card:active{ transform:translateY(1px); }
+  .game-card .emoji{ font-size:30px; line-height:1; }
+  .game-card .name{ font-size:12.5px; color:#4a3010; font-weight:bold; }
+  .goal-progress{
+    width:100%; max-width:648px; box-sizing:border-box;
+    padding:14px 18px 0;
+    font-family: -apple-system, "Hiragino Maru Gothic ProN", sans-serif;
+  }
+  .goal-label{ font-size:12px; color:#8a5a20; text-align:center; margin-bottom:6px; }
+  .goal-track{ height:10px; border-radius:6px; background:rgba(122,74,26,0.15); overflow:hidden; }
+  .goal-fill{ height:100%; width:0%; background:linear-gradient(90deg,#ffb347,#ff7a59); border-radius:6px; transition:width 0.3s ease; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<div class="goal-progress">
+  <div class="goal-label" id="goalLabel">目標 ¥200,000 まで あと ¥200,000</div>
+  <div class="goal-track"><div class="goal-fill" id="goalFill"></div></div>
+</div>
+<div class="more-games">
+  <h2>ほかのゲームも遊んでみる</h2>
+  <div class="game-cards">
+    <a class="game-card" href="reverse-break.html">
+      <span class="emoji">🧱</span><span class="name">ブロック崩し</span>
+    </a>
+    <a class="game-card" href="origami-ace.html">
+      <span class="emoji">🚀</span><span class="name">シューティング</span>
+    </a>
+  </div>
+</div>
 
 <script>/*!
  * matter-js 0.19.0 by @liabru
@@ -129,6 +170,7 @@
     gameOver = false;
     paused = false;
     overTitleText = 'GAME OVER';
+    updateGoalBar();
 
     // Slightly wider than the inner cavity so its edges overlap the side walls
     // instead of just touching them - closes off any sub-pixel seam a coin
@@ -158,6 +200,18 @@
   }
 
   function formatYen(n){ return '¥' + n.toLocaleString('ja-JP'); }
+
+  var goalFillEl = document.getElementById('goalFill');
+  var goalLabelEl = document.getElementById('goalLabel');
+  function updateGoalBar(){
+    if(!goalFillEl) return;
+    var pct = Math.min(100, score/GOAL_SCORE*100);
+    goalFillEl.style.width = pct + '%';
+    var remain = GOAL_SCORE - score;
+    goalLabelEl.textContent = remain > 0
+      ? ('目標 '+formatYen(GOAL_SCORE)+' まで あと '+formatYen(remain))
+      : '目標達成 '+formatYen(GOAL_SCORE)+'! 🎉';
+  }
 
   function makeFruitBody(x, y, tier){
     var f = FRUITS[tier];
@@ -197,6 +251,7 @@
         World.add(world, nb);
       }
       score += FRUITS[tier].score * 2; // the actual yen value of the two coins that just combined
+      updateGoalBar();
       if(!gameOver && score >= GOAL_SCORE) winGame();
     });
     pendingMerges.length = 0;
