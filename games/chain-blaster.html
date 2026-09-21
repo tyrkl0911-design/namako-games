@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>チェインブラスター</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #10101c;
+    font-family: 'Courier New', monospace;
+    color: #eee;
+    overflow: hidden;
+    touch-action: none;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 6px;
+    gap: 5px;
+  }
+  h1 {
+    margin: 2px 0;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: #ffd740;
+    text-shadow: 2px 2px 0 #ff5252, 4px 4px 0 #10101c;
+  }
+  #titleRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #muteBtn, #pauseBtn {
+    background: #22223a;
+    border: 2px solid #444466;
+    border-radius: 6px;
+    color: #eee;
+    font-size: 16px;
+    width: 34px;
+    height: 34px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 480px;
+    font-size: 13px;
+    padding: 0 4px;
+  }
+  #hud .box { text-align: center; }
+  #hud .label { font-size: 9px; color: #8899bb; }
+  #hud .val { font-size: 16px; color: #69f0ae; font-weight: bold; }
+
+  #comboWrap {
+    width: 100%;
+    max-width: 480px;
+    padding: 0 4px;
+  }
+  #comboLabel {
+    font-size: 11px;
+    color: #ffd740;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  #comboBarOuter {
+    width: 100%;
+    height: 14px;
+    background: #222236;
+    border: 2px solid #444466;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  #comboBarInner {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #ff5252, #ffd740, #69f0ae);
+    transition: width 0.25s ease;
+  }
+  .combo-mark {
+    position: absolute;
+    top: -1px;
+    bottom: -1px;
+    width: 2px;
+    background: rgba(255,255,255,0.5);
+  }
+
+  #superBtn {
+    display: none;
+    width: 100%;
+    max-width: 480px;
+    padding: 8px;
+    font-size: 15px;
+    font-weight: bold;
+    color: #10101c;
+    background: linear-gradient(180deg, #ffe57f, #ffab00);
+    border: 3px solid #fff3c4;
+    border-radius: 8px;
+    box-shadow: 0 0 12px #ffab00;
+    animation: pulse 0.8s infinite alternate;
+    letter-spacing: 2px;
+  }
+  #superBtn.active { display: block; }
+  @keyframes pulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.03); }
+  }
+
+  #gridWrap {
+    position: relative;
+    width: min(94vw, 480px, 58vh);
+    aspect-ratio: 1 / 1;
+    background: #1a1a2e;
+    border: 3px solid #444466;
+    border-radius: 6px;
+    padding: 4px;
+  }
+  #grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: 100%;
+    height: 100%;
+    gap: 2px;
+  }
+  .clear-fx {
+    position: absolute;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 5;
+    animation: clearBurst 0.5s ease-out forwards;
+  }
+  @keyframes clearBurst {
+    0% { transform: scale(1) rotate(0deg); opacity: 1; filter: brightness(1) saturate(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+    35% { transform: scale(1.35) rotate(8deg); opacity: 1; filter: brightness(2.4) saturate(1.6); box-shadow: 0 0 16px 6px currentColor; }
+    100% { transform: scale(0.2) rotate(20deg); opacity: 0; filter: brightness(2) saturate(1.6); box-shadow: 0 0 4px 2px currentColor; }
+  }
+  .cell {
+    background: #22223a;
+    border-radius: 3px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    transition: background 0.1s;
+  }
+  .cell.filled {
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), inset 0 3px 0 rgba(255,255,255,0.25);
+  }
+  .cell.preview-ok { outline: 2px solid #69f0ae; outline-offset: -2px; }
+  .cell.preview-bad { outline: 2px solid #ff5252; outline-offset: -2px; }
+  .cell.target-mode { outline: 2px dashed #ffd740; outline-offset: -2px; }
+  .cell.pad-cursor { box-shadow: 0 0 0 3px #fff, 0 0 10px 2px #ffd740; z-index: 2; }
+  .piece-slot.pad-selected { box-shadow: 0 0 0 3px #ffd740; background: rgba(255,215,64,0.15); }
+  .cell.crack::after {
+    content: '';
+    position: absolute;
+    inset: 15%;
+    border: 2px solid rgba(255,255,255,0.7);
+    border-radius: 2px;
+  }
+
+  #handWrap {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: min(94vw, 480px, 58vh);
+    min-height: 80px;
+    gap: 6px;
+  }
+  .piece-slot {
+    display: grid;
+    gap: 2px;
+    touch-action: none;
+    padding: 4px;
+    border-radius: 6px;
+  }
+  .piece-slot.dragging-src { opacity: 0.25; }
+  .piece-cell {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+  }
+  .piece-cell.empty { background: transparent; }
+
+  #ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 50;
+    display: none;
+    gap: 2px;
+  }
+  #ghost .piece-cell { width: 30px; height: 30px; opacity: 0.85; }
+
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,8,16,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 100;
+    text-align: center;
+    padding: 20px;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h2 { color: #ffd740; font-size: 26px; margin: 0; text-shadow: 2px 2px 0 #ff5252; }
+  #overlay .stat { font-size: 15px; color: #cfd8ff; }
+  #overlay .stat b { color: #69f0ae; }
+  #overlay button {
+    margin-top: 10px;
+    padding: 12px 28px;
+    font-size: 16px;
+    font-weight: bold;
+    background: linear-gradient(180deg, #69f0ae, #00c853);
+    color: #10101c;
+    border: 3px solid #b9ffd6;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  #flash {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 60;
+  }
+  #toast {
+    position: fixed;
+    top: 14%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffd740;
+    text-shadow: 2px 2px 0 #ff5252;
+    z-index: 70;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #pauseOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,8,16,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 210;
+    text-align: center;
+    padding: 20px;
+  }
+  #pauseOverlay.hidden { display: none; }
+  #pauseOverlay h2 { color: #ffd740; font-size: 24px; margin: 0; text-shadow: 2px 2px 0 #ff5252; }
+  #pauseOverlay .legend-text {
+    font-size: 12px;
+    color: #cfd8ff;
+    max-width: 380px;
+    line-height: 1.9;
+  }
+  #pauseOverlay button {
+    margin-top: 6px;
+    padding: 12px 28px;
+    font-size: 16px;
+    font-weight: bold;
+    background: linear-gradient(180deg, #69f0ae, #00c853);
+    color: #10101c;
+    border: 3px solid #b9ffd6;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  #startOverlay {
+    position: fixed;
+    inset: 0;
+    background: #10101c;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 200;
+    text-align: center;
+    padding: 20px;
+  }
+  #startOverlay.hidden { display: none; }
+  #startOverlay button { font-family: inherit; }
+  #startOverlay h1 {
+    font-size: 28px;
+    letter-spacing: 3px;
+    color: #ffd740;
+    text-shadow: 2px 2px 0 #ff5252, 4px 4px 0 #10101c;
+    margin: 0;
+  }
+  #startOverlay .subtitle {
+    font-size: 12px;
+    color: #8899bb;
+    margin-top: -8px;
+  }
+  #startOverlay .title-highscore {
+    font-size: 14px;
+    color: #69f0ae;
+    font-weight: bold;
+  }
+  #startOverlay .title-btn-row {
+    display: flex;
+    gap: 10px;
+  }
+  #startOverlay .title-sub-btn {
+    background: #22223a;
+    border: 2px solid #444466;
+    border-radius: 6px;
+    color: #eee;
+    font-size: 13px;
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+  #startOverlay .tap-msg {
+    font-size: 16px;
+    background: linear-gradient(180deg, #ffe57f, #ffab00);
+    color: #10101c;
+    font-weight: bold;
+    padding: 14px 32px;
+    border-radius: 8px;
+    border: 3px solid #fff3c4;
+    animation: pulse 0.8s infinite alternate;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+<div id="startOverlay">
+  <h1>チェインブラスター</h1>
+  <div class="subtitle">コンボを繋いで、必殺技をぶっ放せ</div>
+  <div class="title-highscore">ハイスコア: <span id="titleHighVal">0</span></div>
+  <div class="title-btn-row">
+    <button id="howToBtn" class="title-sub-btn">あそびかた</button>
+    <button id="titleMuteBtn" class="title-sub-btn">🔊 サウンド</button>
+  </div>
+  <button id="startBtn" class="tap-msg">タップしてスタート</button>
+</div>
+<div id="app">
+  <div id="titleRow">
+    <h1>チェインブラスター</h1>
+    <button id="muteBtn" aria-label="音のオン/オフ">🔊</button>
+    <button id="pauseBtn" aria-label="ポーズ・遊び方">⏸️</button>
+  </div>
+  <div id="hud">
+    <div class="box"><div class="label">スコア</div><div class="val" id="scoreVal">0</div></div>
+    <div class="box"><div class="label">ハイスコア</div><div class="val" id="highVal">0</div></div>
+    <div class="box"><div class="label">最大コンボ</div><div class="val" id="comboMaxVal">0</div></div>
+  </div>
+  <audio id="bgmAudio" src="chain-blaster-bgm.mp3" loop preload="auto"></audio>
+
+  <div id="comboWrap">
+    <div id="comboLabel"><span>コンボゲージ</span><span id="comboNum">0</span></div>
+    <div id="comboBarOuter">
+      <div id="comboBarInner"></div>
+    </div>
+  </div>
+
+  <button id="superBtn">10コンボ必殺技!タップで好きな場所を爆破</button>
+
+  <div id="gridWrap">
+    <div id="grid"></div>
+  </div>
+
+  <div id="handWrap"></div>
+</div>
+
+<div id="pauseOverlay" class="hidden">
+  <h2 id="pauseTitle">ポーズ / 遊び方</h2>
+  <div class="legend-text">
+    行か列を埋めると消去、コンボを繋いで必殺技を狙おう。<br><br>
+    🧊氷 = 2回消去で破壊<br>
+    💣爆弾 = 周囲を巻き込み消去<br>
+    🔒ロック = 隣接消去で解除<br>
+    🌱成長 = 放置で拡大<br><br>
+    3/5/8コンボで必殺技が自動発動、10コンボで好きな場所を自由に爆破できる。<br><br>
+    コントローラー: 十字キー/スティック移動・A配置・LB/RBでピース切替・Y必殺技
+  </div>
+  <button id="resumeBtn">再開する</button>
+</div>
+
+<div id="ghost"></div>
+<div id="flash"></div>
+<div id="toast"></div>
+
+<div id="overlay">
+  <h2>GAME OVER</h2>
+  <div class="stat">スコア: <b id="finalScore">0</b></div>
+  <div class="stat">ハイスコア: <b id="finalHigh">0</b></div>
+  <div class="stat">最大コンボ: <b id="finalCombo">0</b></div>
+  <div class="stat" id="newRecord" style="color:#ffd740; display:none;">★ ハイスコア更新! ★</div>
+  <button id="restartBtn">もう一度遊ぶ</button>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var SIZE = 8;
+  var COLORS = ['#ff5252','#448aff','#ffd740','#69f0ae','#e040fb','#ff6e40','#40c4ff','#b2ff59'];
+  var STORAGE_KEY = 'chainBlasterHighScore';
+
+  var SHAPES = [
+    [[0,0]],
+    [[0,0],[0,1]],
+    [[0,0],[1,0]],
+    [[0,0],[0,1],[0,2]],
+    [[0,0],[1,0],[2,0]],
+    [[0,0],[0,1],[1,0],[1,1]],
+    [[0,0],[1,0],[2,0],[2,1]],
+    [[0,1],[1,1],[2,1],[2,0]],
+    [[0,0],[0,1],[0,2],[1,1]],
+    [[0,1],[0,2],[1,0],[1,1]],
+    [[0,0],[0,1],[1,1],[1,2]],
+    [[0,1],[1,0],[1,1],[1,2],[2,1]],
+    [[0,0],[0,1],[0,2],[0,3]],
+    [[0,0],[1,0],[2,0],[3,0]],
+    [[0,0],[0,1],[0,2],[1,0],[2,0]]
+  ];
+
+  var SPECIALS = ['ice','bomb','lock','growth'];
+  var SPECIAL_ICON = { ice:'🧊', bomb:'💣', lock:'🔒', growth:'🌱' };
+
+  // grid[r][c] = null | { color, type, hp, locked, growTurns }
+  var grid = [];
+  var hand = []; // array of {shape, color, cells:[{r,c,special}]}
+  var score = 0;
+  var highScore = 0;
+  var combo = 0;
+  var comboMax = 0;
+  var comboFiredAt = { 3:false, 5:false, 8:false };
+  var superReady = false;
+  var targetMode = false; // waiting for player to tap a cell for the 10-combo super
+  var gameOver = false;
+  var paused = false;
+
+  // ---- gamepad state ----
+  var padConnected = false;
+  var padCursor = { r: 0, c: 0 };
+  var padSelectedIdx = 0;
+  var padPrevButtons = [];
+  var padMoveCooldown = 0;
+
+  var gridEl = document.getElementById('grid');
+  var handEl = document.getElementById('handWrap');
+  var ghostEl = document.getElementById('ghost');
+  var scoreValEl = document.getElementById('scoreVal');
+  var highValEl = document.getElementById('highVal');
+  var comboMaxValEl = document.getElementById('comboMaxVal');
+  var comboNumEl = document.getElementById('comboNum');
+  var comboBarInner = document.getElementById('comboBarInner');
+  var superBtn = document.getElementById('superBtn');
+  var overlay = document.getElementById('overlay');
+  var flashEl = document.getElementById('flash');
+  var toastEl = document.getElementById('toast');
+  var bgmAudio = document.getElementById('bgmAudio');
+  var muteBtn = document.getElementById('muteBtn');
+  var pauseBtn = document.getElementById('pauseBtn');
+  var pauseOverlay = document.getElementById('pauseOverlay');
+  var resumeBtn = document.getElementById('resumeBtn');
+  var startOverlay = document.getElementById('startOverlay');
+  var startBtn = document.getElementById('startBtn');
+  var howToBtn = document.getElementById('howToBtn');
+  var titleMuteBtn = document.getElementById('titleMuteBtn');
+  var titleHighValEl = document.getElementById('titleHighVal');
+  var pauseTitleEl = document.getElementById('pauseTitle');
+
+  var cellEls = [];
+
+  // ---- audio: BGM playback + retro SE (recorded CC0 clips, Freesound "Retro video game sfx" pack by OwlStorm) ----
+  var MUTE_KEY = 'chainBlasterMuted';
+  var muted = false;
+  try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch (e) {}
+
+  var SFX_FILES = {
+    place: '効果音/chain-blaster-freesound/place.mp3',
+    clear: '効果音/chain-blaster-freesound/clear.mp3',
+    clearHit: '効果音/chain-blaster-freesound/clear_hit.mp3',
+    clearSparkle: '効果音/chain-blaster-freesound/clear_sparkle.mp3',
+    combo3: '効果音/chain-blaster-freesound/combo3.mp3',
+    combo5: '効果音/chain-blaster-freesound/combo5.mp3',
+    combo8: '効果音/chain-blaster-freesound/combo8.mp3',
+    superReady: '効果音/chain-blaster-freesound/super_ready.mp3',
+    superBlast: '効果音/chain-blaster-freesound/super_blast.mp3',
+    gameover: '効果音/chain-blaster-freesound/gameover.mp3',
+    record: '効果音/chain-blaster-freesound/record.mp3'
+  };
+  var sfxPool = {};
+  Object.keys(SFX_FILES).forEach(function(key) {
+    var a = new Audio(SFX_FILES[key]);
+    a.preload = 'auto';
+    sfxPool[key] = a;
+  });
+
+  // clone the preloaded element so overlapping SFX (e.g. rapid placements) don't cut each other off
+  function playClip(key, volume, rate) {
+    if (muted) return;
+    var base = sfxPool[key];
+    if (!base) return;
+    var node = base.cloneNode();
+    node.volume = volume !== undefined ? volume : 0.6;
+    node.playbackRate = rate || 1;
+    node.play().catch(function () {});
+  }
+
+  function playPlaceSound() {
+    playClip('place', 0.45);
+  }
+
+  function playClearSound(comboCount) {
+    // layered for a punchier "flashy" clear: hit + chime immediately, shimmer tail just after.
+    // most runs only reach a 2-3 combo, so the escalation is front-loaded to peak by combo 3
+    // rather than spread out to 8, on top of the fixed milestone fanfare at 3/5/8.
+    var c = Math.max(1, comboCount || 1);
+    var rate = Math.min(1 + (c - 1) * 0.12, 1.4);
+    var boost = Math.min((c - 1) * 0.08, 0.22);
+    playClip('clearHit', Math.min(0.7 + boost, 0.98), rate);
+    playClip('clear', Math.min(0.55 + boost, 0.85), rate);
+    setTimeout(function () { playClip('clearSparkle', Math.min(0.5 + boost, 0.8), rate); }, 70);
+    if (c >= 2) {
+      // extra echoing punch from combo 2 onward
+      setTimeout(function () { playClip('clearHit', 0.55, Math.min(rate + 0.1, 1.5)); }, 45);
+    }
+    if (c >= 3) {
+      // extra sparkle burst on top from combo 3 onward, since that's the realistic ceiling
+      setTimeout(function () { playClip('clearSparkle', 0.6, Math.min(rate + 0.15, 1.6)); }, 110);
+    }
+  }
+
+  function playComboFanfare(level) {
+    if (level === 3) playClip('combo3', 0.6);
+    else if (level === 5) playClip('combo5', 0.65);
+    else if (level === 8) playClip('combo8', 0.7);
+  }
+
+  function playSuperReadySound() {
+    playClip('superReady', 0.6);
+  }
+
+  function playSuperBlastSound() {
+    playClip('superBlast', 0.75);
+  }
+
+  function playGameOverSound() {
+    playClip('gameover', 0.6);
+  }
+
+  function playRecordSound() {
+    playClip('record', 0.7);
+  }
+
+  function updateMuteUI() {
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+    titleMuteBtn.textContent = muted ? '🔇 サウンド' : '🔊 サウンド';
+    bgmAudio.muted = muted;
+  }
+
+  function setMuted(v) {
+    muted = v;
+    try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch (e) {}
+    updateMuteUI();
+    if (!muted) tryStartBgm();
+  }
+
+  function tryStartBgm() {
+    if (muted || paused || !bgmAudio.paused) return;
+    bgmAudio.volume = 0.35;
+    var p = bgmAudio.play();
+    if (p && p.catch) p.catch(function() {}); // ブラウザの自動再生制限で失敗した場合は、次のユーザー操作イベントで再試行される
+  }
+
+  function openPause() {
+    if (gameOver) return;
+    paused = true;
+    pauseTitleEl.textContent = 'ポーズ / 遊び方';
+    resumeBtn.textContent = '再開する';
+    pauseOverlay.classList.remove('hidden');
+    bgmAudio.pause();
+  }
+
+  function closePause() {
+    paused = false;
+    pauseOverlay.classList.add('hidden');
+    tryStartBgm();
+  }
+
+  function togglePause() {
+    if (paused) closePause(); else openPause();
+  }
+
+  // タイトル画面(startOverlay表示中)からの「あそびかた」は、pausedやBGMに触れず説明を見せるだけ。
+  // 閉じるときも、タイトル画面表示中ならタイトルに戻すだけでゲームを開始させない。
+  function onResumeClick() {
+    if (!startOverlay.classList.contains('hidden')) {
+      pauseOverlay.classList.add('hidden');
+    } else {
+      closePause();
+    }
+  }
+
+  muteBtn.addEventListener('click', function() { setMuted(!muted); });
+  titleMuteBtn.addEventListener('click', function() { setMuted(!muted); });
+  pauseBtn.addEventListener('click', togglePause);
+  howToBtn.addEventListener('click', function() {
+    pauseTitleEl.textContent = 'あそびかた';
+    resumeBtn.textContent = 'とじる';
+    pauseOverlay.classList.remove('hidden');
+  });
+  resumeBtn.addEventListener('click', onResumeClick);
+  updateMuteUI();
+  // 自動再生がブラウザにブロックされた場合、成功するまで毎回のユーザー操作で再試行する
+  // (once:trueだと最初の1回で失敗した時点で二度と試行されなくなるため使わない)
+  ['pointerdown', 'keydown'].forEach(function(evt) {
+    window.addEventListener(evt, tryStartBgm);
+  });
+  tryStartBgm(); // ページ読み込み直後にも自動再生を試みる(ブラウザが許可すれば操作前でも鳴る)
+
+  // pointerdown単体はブラウザによって自動再生の許可対象と認識されないことがあるため、
+  // 「スタート」ボタンの完全なclickイベントで確実にBGMを開始し、盤面操作も解禁する。
+  startBtn.addEventListener('click', function() {
+    startOverlay.classList.add('hidden');
+    closePause();
+  });
+
+  function loadHighScore() {
+    try {
+      var v = localStorage.getItem(STORAGE_KEY);
+      return v ? parseInt(v, 10) || 0 : 0;
+    } catch (e) { return 0; }
+  }
+  function saveHighScore(v) {
+    try { localStorage.setItem(STORAGE_KEY, String(v)); } catch (e) {}
+  }
+
+  function initGrid() {
+    grid = [];
+    for (var r = 0; r < SIZE; r++) {
+      var row = [];
+      for (var c = 0; c < SIZE; c++) row.push(null);
+      grid.push(row);
+    }
+  }
+
+  function buildGridDom() {
+    gridEl.innerHTML = '';
+    cellEls = [];
+    for (var r = 0; r < SIZE; r++) {
+      var rowEls = [];
+      for (var c = 0; c < SIZE; c++) {
+        var cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        gridEl.appendChild(cell);
+        rowEls.push(cell);
+      }
+      cellEls.push(rowEls);
+    }
+  }
+
+  function randColor() {
+    return COLORS[Math.floor(Math.random() * COLORS.length)];
+  }
+
+  function specialsUnlocked() {
+    return score >= 300;
+  }
+
+  function makePieceFromShape(shape) {
+    var color = randColor();
+    var cells = shape.map(function(p) { return { r: p[0], c: p[1], special: null, hp: 1 }; });
+    if (specialsUnlocked() && Math.random() < 0.35) {
+      var idx = Math.floor(Math.random() * cells.length);
+      var type = SPECIALS[Math.floor(Math.random() * SPECIALS.length)];
+      cells[idx].special = type;
+      if (type === 'ice') cells[idx].hp = 2;
+    }
+    return { shape: shape, color: color, cells: cells };
+  }
+
+  function generateHand() {
+    hand = [];
+    for (var i = 0; i < 3; i++) {
+      var shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      hand.push(makePieceFromShape(shape));
+    }
+    renderHand();
+    checkForGameOver();
+  }
+
+  function shapeBounds(shape) {
+    var maxR = 0, maxC = 0;
+    shape.forEach(function(p) { if (p[0] > maxR) maxR = p[0]; if (p[1] > maxC) maxC = p[1]; });
+    return { rows: maxR + 1, cols: maxC + 1 };
+  }
+
+  function cellVisual(cellData) {
+    var el = document.createElement('div');
+    el.className = 'piece-cell';
+    if (cellData) {
+      el.style.background = cellData.color;
+      if (cellData.special) {
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+        el.style.fontSize = '15px';
+        el.style.lineHeight = '1';
+        el.textContent = SPECIAL_ICON[cellData.special];
+      }
+    } else {
+      el.classList.add('empty');
+    }
+    return el;
+  }
+
+  function renderHand() {
+    handEl.innerHTML = '';
+    hand.forEach(function(piece, idx) {
+      if (!piece) {
+        var placeholder = document.createElement('div');
+        placeholder.style.width = '60px';
+        handEl.appendChild(placeholder);
+        return;
+      }
+      var b = shapeBounds(piece.shape);
+      var slot = document.createElement('div');
+      slot.className = 'piece-slot';
+      slot.style.gridTemplateColumns = 'repeat(' + b.cols + ', 18px)';
+      slot.style.gridTemplateRows = 'repeat(' + b.rows + ', 18px)';
+      slot.dataset.idx = idx;
+
+      var map = {};
+      piece.cells.forEach(function(cd) { map[cd.r + '_' + cd.c] = cd; });
+
+      for (var r = 0; r < b.rows; r++) {
+        for (var c = 0; c < b.cols; c++) {
+          var cd = map[r + '_' + c];
+          var visual = cd ? { color: piece.color, special: cd.special } : null;
+          slot.appendChild(cellVisual(visual));
+        }
+      }
+      slot.addEventListener('pointerdown', function(ev) { onPieceDragStart(ev, idx); });
+      if (padConnected && idx === padSelectedIdx) slot.classList.add('pad-selected');
+      handEl.appendChild(slot);
+    });
+    renderPadCursor();
+  }
+
+  // ---- drag & drop ----
+  var dragState = null;
+
+  function onPieceDragStart(ev, idx) {
+    if (gameOver || targetMode || paused) return;
+    var piece = hand[idx];
+    if (!piece) return;
+    ev.preventDefault();
+    var slotEl = ev.currentTarget;
+    slotEl.classList.add('dragging-src');
+
+    var b = shapeBounds(piece.shape);
+    ghostEl.innerHTML = '';
+    ghostEl.style.gridTemplateColumns = 'repeat(' + b.cols + ', 30px)';
+    ghostEl.style.gridTemplateRows = 'repeat(' + b.rows + ', 30px)';
+    var map = {};
+    piece.cells.forEach(function(cd) { map[cd.r + '_' + cd.c] = cd; });
+    for (var r = 0; r < b.rows; r++) {
+      for (var c = 0; c < b.cols; c++) {
+        var cd = map[r + '_' + c];
+        ghostEl.appendChild(cellVisual(cd ? { color: piece.color, special: cd.special } : null));
+      }
+    }
+    ghostEl.style.display = 'grid';
+
+    dragState = { idx: idx, piece: piece, bounds: b, slotEl: slotEl };
+    moveGhost(ev.clientX, ev.clientY);
+    updateDropPreview(ev.clientX, ev.clientY);
+
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup', onDragEnd);
+  }
+
+  function moveGhost(x, y) {
+    var w = dragState.bounds.cols * 30, h = dragState.bounds.rows * 30;
+    ghostEl.style.left = (x - w / 2) + 'px';
+    ghostEl.style.top = (y - h - 20) + 'px';
+  }
+
+  function gridOriginAndCellSize() {
+    var rect = gridEl.getBoundingClientRect();
+    return { left: rect.left, top: rect.top, cell: rect.width / SIZE };
+  }
+
+  function clearPreview() {
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) {
+      cellEls[r][c].classList.remove('preview-ok', 'preview-bad');
+    }
+  }
+
+  function updateDropPreview(x, y) {
+    clearPreview();
+    var g = gridOriginAndCellSize();
+    var w = dragState.bounds.cols * g.cell, h = dragState.bounds.rows * g.cell;
+    var originX = x - w / 2, originY = y - h - 20;
+    var col = Math.round((originX - g.left) / g.cell);
+    var row = Math.round((originY - g.top) / g.cell);
+    dragState.dropRow = row;
+    dragState.dropCol = col;
+    var ok = canPlacePiece(dragState.piece, row, col);
+    dragState.piece.shape.forEach(function(p) {
+      var rr = row + p[0], cc = col + p[1];
+      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE) {
+        cellEls[rr][cc].classList.add(ok ? 'preview-ok' : 'preview-bad');
+      }
+    });
+  }
+
+  function onDragMove(ev) {
+    if (!dragState) return;
+    moveGhost(ev.clientX, ev.clientY);
+    updateDropPreview(ev.clientX, ev.clientY);
+  }
+
+  function onDragEnd(ev) {
+    if (!dragState) return;
+    window.removeEventListener('pointermove', onDragMove);
+    window.removeEventListener('pointerup', onDragEnd);
+    clearPreview();
+    ghostEl.style.display = 'none';
+    dragState.slotEl.classList.remove('dragging-src');
+
+    var row = dragState.dropRow, col = dragState.dropCol, idx = dragState.idx;
+    placeFromHand(idx, row, col);
+    dragState = null;
+  }
+
+  function placeFromHand(idx, row, col) {
+    if (paused || gameOver) return false; // マルチタッチでドラッグ中にポーズを開いた場合の配置確定を防ぐ
+    var piece = hand[idx];
+    if (!piece || !canPlacePiece(piece, row, col)) return false;
+    commitPlacement(piece, row, col);
+    hand[idx] = null;
+    renderHand();
+    if (hand.every(function(p) { return p === null; })) {
+      generateHand();
+    } else {
+      checkForGameOver();
+    }
+    return true;
+  }
+
+  function canPlacePiece(piece, row, col) {
+    for (var i = 0; i < piece.shape.length; i++) {
+      var rr = row + piece.shape[i][0], cc = col + piece.shape[i][1];
+      if (rr < 0 || rr >= SIZE || cc < 0 || cc >= SIZE) return false;
+      if (grid[rr][cc] !== null) return false;
+    }
+    return true;
+  }
+
+  function anyPlacementPossible(piece) {
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) {
+      if (canPlacePiece(piece, r, c)) return true;
+    }
+    return false;
+  }
+
+  function checkForGameOver() {
+    var anyPiece = hand.some(function(p) { return p !== null; });
+    if (!anyPiece) return;
+    var possible = hand.some(function(p) { return p && anyPlacementPossible(p); });
+    if (!possible) triggerGameOver();
+  }
+
+  // ライン消去で消えたマスに、発光して弾けるような一時的な演出を重ねて表示する
+  function spawnClearEffects(cells) {
+    if (!cells || cells.length === 0) return;
+    var gridRect = gridEl.getBoundingClientRect();
+    var cellW = gridRect.width / SIZE;
+    var cellH = gridRect.height / SIZE;
+    cells.forEach(function(cd, i) {
+      var el = document.createElement('div');
+      el.className = 'clear-fx';
+      el.style.left = (cd.c * cellW) + 'px';
+      el.style.top = (cd.r * cellH) + 'px';
+      el.style.width = cellW + 'px';
+      el.style.height = cellH + 'px';
+      el.style.background = cd.color;
+      el.style.color = cd.color;
+      el.style.animationDelay = (i * 12) + 'ms';
+      gridEl.appendChild(el);
+      el.addEventListener('animationend', function() { el.remove(); });
+    });
+  }
+
+  function commitPlacement(piece, row, col) {
+    piece.cells.forEach(function(cd) {
+      var rr = row + cd.r, cc = col + cd.c;
+      grid[rr][cc] = {
+        color: piece.color,
+        type: cd.special || 'normal',
+        hp: cd.special === 'ice' ? 2 : 1,
+        locked: cd.special === 'lock' ? true : false,
+        growTurns: 0
+      };
+    });
+    score += piece.cells.length * 10;
+    var cleared = resolveLines();
+    if (cleared.count > 0) {
+      playClearSound(combo + 1);
+      spawnClearEffects(cleared.cells);
+      combo += 1;
+      if (combo > comboMax) comboMax = combo;
+      handleComboMilestones();
+    } else {
+      playPlaceSound();
+      combo = 0;
+      comboFiredAt = { 3:false, 5:false, 8:false };
+    }
+    tickGrowth();
+    updateHud();
+    render();
+  }
+
+  // 1マスの消去を試みる共通処理。氷(hp>1)はダメージのみでまだ消えず、ロックは単体では消せない。
+  // 通常ライン消去・全必殺技(小爆発/列消去/自由爆破)から共通で呼び、特殊ブロックの扱いを一致させる。
+  function tryClearCell(r2, c2) {
+    var cell = grid[r2][c2];
+    if (cell === null) return false;
+    if (cell.locked) return false;
+    if (cell.type === 'ice' && cell.hp > 1) {
+      cell.hp -= 1;
+      return false;
+    }
+    grid[r2][c2] = null;
+    return true;
+  }
+
+  // 消去されたマスに隣接するロックブロックを解除し、通常ブロックに戻す。
+  function unlockAdjacent(clearedKeys) {
+    Object.keys(clearedKeys).forEach(function(key) {
+      var parts = key.split('_'); var r2 = +parts[0], c2 = +parts[1];
+      [[-1,0],[1,0],[0,-1],[0,1]].forEach(function(d) {
+        var rr = r2 + d[0], cc = c2 + d[1];
+        if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE) {
+          var n = grid[rr][cc];
+          if (n && n.locked) { n.locked = false; n.type = 'normal'; }
+        }
+      });
+    });
+  }
+
+  function resolveLines() {
+    var fullRows = [], fullCols = [];
+    var r, c;
+    for (r = 0; r < SIZE; r++) {
+      var rowCells = grid[r];
+      var full = rowCells.every(function(x) { return x !== null; });
+      if (full) fullRows.push(r);
+    }
+    for (c = 0; c < SIZE; c++) {
+      var colCells = [];
+      for (r = 0; r < SIZE; r++) colCells.push(grid[r][c]);
+      var fullC = colCells.every(function(x) { return x !== null; });
+      if (fullC) fullCols.push(c);
+    }
+
+    if (fullRows.length === 0 && fullCols.length === 0) return { count: 0, cells: [] };
+
+    // 完成した行・列の各セルを重複なく集めてから1回だけ判定する(氷・ロックはセル単体だけ消去を免れる)。
+    var candidates = {};
+    fullRows.forEach(function(r) { for (var c2 = 0; c2 < SIZE; c2++) candidates[r + '_' + c2] = [r, c2]; });
+    fullCols.forEach(function(c) { for (var r2 = 0; r2 < SIZE; r2++) candidates[r2 + '_' + c] = [r2, c]; });
+
+    var toClear = {};
+    var clearedCells = []; // 演出用に消去前の色を記録しておく
+    var bombQueue = [];
+    Object.keys(candidates).forEach(function(key) {
+      var pos = candidates[key];
+      var before = grid[pos[0]][pos[1]];
+      var wasBomb = before.type === 'bomb'; // 消去する前に種別を退避しておく
+      if (tryClearCell(pos[0], pos[1])) {
+        toClear[key] = true;
+        clearedCells.push({ r: pos[0], c: pos[1], color: before.color });
+        if (wasBomb) bombQueue.push(pos);
+      }
+    });
+
+    if (Object.keys(toClear).length === 0) {
+      render();
+      return { count: 0, cells: [] };
+    }
+
+    // expand for bombs(ロックは巻き込まない。氷は巻き込まれてもダメージ1回分に留まる)
+    bombQueue.forEach(function(pos) {
+      for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+        var rr = pos[0] + dr, cc = pos[1] + dc;
+        var key = rr + '_' + cc;
+        if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && !toClear[key] && grid[rr][cc] !== null) {
+          var beforeBomb = grid[rr][cc];
+          if (tryClearCell(rr, cc)) {
+            toClear[key] = true;
+            clearedCells.push({ r: rr, c: cc, color: beforeBomb.color });
+          }
+        }
+      }
+    });
+
+    unlockAdjacent(toClear);
+
+    var clearedCount = Object.keys(toClear).length;
+
+    // 氷・ロックが残らず完全に消し切れたラインだけをボーナス対象にする
+    var fullyCleared = 0;
+    fullRows.forEach(function(r) {
+      var allCleared = true;
+      for (var c2 = 0; c2 < SIZE; c2++) if (grid[r][c2] !== null) { allCleared = false; break; }
+      if (allCleared) fullyCleared++;
+    });
+    fullCols.forEach(function(c) {
+      var allCleared = true;
+      for (var r2 = 0; r2 < SIZE; r2++) if (grid[r2][c] !== null) { allCleared = false; break; }
+      if (allCleared) fullyCleared++;
+    });
+    score += 50 * fullyCleared + (fullyCleared > 1 ? 30 * fullyCleared : 0);
+
+    return { count: clearedCount, cells: clearedCells };
+  }
+
+  function tickGrowth() {
+    var growers = [];
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) {
+      var cell = grid[r][c];
+      if (cell && cell.type === 'growth') growers.push([r, c]);
+    }
+    growers.forEach(function(pos) {
+      var cell = grid[pos[0]][pos[1]];
+      cell.growTurns += 1;
+      if (cell.growTurns >= 3) {
+        cell.growTurns = 0;
+        var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+        for (var i = 0; i < dirs.length; i++) {
+          var rr = pos[0] + dirs[i][0], cc = pos[1] + dirs[i][1];
+          if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && grid[rr][cc] === null) {
+            grid[rr][cc] = { color: cell.color, type: 'growth', hp: 1, locked: false, growTurns: 0 };
+            break;
+          }
+        }
+      }
+    });
+  }
+
+  function handleComboMilestones() {
+    if (combo === 3 && !comboFiredAt[3]) {
+      comboFiredAt[3] = true;
+      playComboFanfare(3);
+      fireSmallBomb();
+      showToast('3コンボ! 小爆発!');
+    }
+    if (combo === 5 && !comboFiredAt[5]) {
+      comboFiredAt[5] = true;
+      playComboFanfare(5);
+      fireLineBomb('col');
+      showToast('5コンボ! 縦一列消去!');
+    }
+    if (combo === 8 && !comboFiredAt[8]) {
+      comboFiredAt[8] = true;
+      playComboFanfare(8);
+      fireLineBomb('row', true);
+      showToast('8コンボ! 横一列+周囲消去!');
+    }
+    if (combo === 10 && !superReady) {
+      superReady = true;
+      playSuperReadySound();
+      showToast('10コンボ! 必殺技解放!');
+    }
+  }
+
+  function randomFilledCell() {
+    var candidates = [];
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) {
+      if (grid[r][c] !== null) candidates.push([r, c]);
+    }
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  function explodeArea(row, col) {
+    var clearedKeys = {};
+    var count = 0;
+    for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+      var rr = row + dr, cc = col + dc;
+      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE) {
+        if (tryClearCell(rr, cc)) { clearedKeys[rr + '_' + cc] = true; count++; }
+      }
+    }
+    unlockAdjacent(clearedKeys);
+    score += count * 15;
+    render();
+    return count;
+  }
+
+  function fireSmallBomb() {
+    var pos = randomFilledCell();
+    if (!pos) return;
+    explodeArea(pos[0], pos[1]);
+    score += 100;
+    flashScreen();
+  }
+
+  function mostFilledIndex(kind) {
+    var best = 0, bestCount = -1;
+    for (var i = 0; i < SIZE; i++) {
+      var count = 0;
+      for (var j = 0; j < SIZE; j++) {
+        var cell = kind === 'col' ? grid[j][i] : grid[i][j];
+        if (cell !== null) count++;
+      }
+      if (count > bestCount) { bestCount = count; best = i; }
+    }
+    return best;
+  }
+
+  function fireLineBomb(kind, withNeighbors) {
+    var idx = mostFilledIndex(kind);
+    var clearedKeys = {};
+    var cleared = 0;
+    for (var j = 0; j < SIZE; j++) {
+      var r = kind === 'col' ? j : idx;
+      var c = kind === 'col' ? idx : j;
+      if (tryClearCell(r, c)) { clearedKeys[r + '_' + c] = true; cleared++; }
+      if (withNeighbors) {
+        var extra = kind === 'row' ? [[idx - 1, j], [idx + 1, j]] : [];
+        extra.forEach(function(p) {
+          if (p[0] >= 0 && p[0] < SIZE && tryClearCell(p[0], p[1])) { clearedKeys[p[0] + '_' + p[1]] = true; cleared++; }
+        });
+      }
+    }
+    unlockAdjacent(clearedKeys);
+    score += 200 + cleared * 10;
+    render();
+    flashScreen();
+  }
+
+  function activateSuperTarget() {
+    if (!superReady || paused || gameOver) return;
+    targetMode = true;
+    superBtn.classList.remove('active');
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) cellEls[r][c].classList.add('target-mode');
+    showToast('好きなマスをタップして爆破!');
+  }
+
+  function onGridTap(r, c) {
+    if (!targetMode || paused) return;
+    targetMode = false;
+    superReady = false;
+    for (var rr = 0; rr < SIZE; rr++) for (var cc = 0; cc < SIZE; cc++) cellEls[rr][cc].classList.remove('target-mode');
+    explodeArea(r, c);
+    score += 500;
+    combo = 0;
+    comboFiredAt = { 3:false, 5:false, 8:false };
+    playSuperBlastSound();
+    flashScreen();
+    updateHud();
+    checkForGameOver();
+  }
+
+  // ---- gamepad controls ----
+  function renderPadCursor() {
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) cellEls[r][c].classList.remove('pad-cursor');
+    if (!padConnected || gameOver || paused || dragState) return; // マウス/タッチドラッグ中はパッド側のプレビューを描画しない
+    if (targetMode) {
+      cellEls[padCursor.r][padCursor.c].classList.add('pad-cursor');
+      return;
+    }
+    clearPreview();
+    var piece = hand[padSelectedIdx];
+    if (piece) {
+      var ok = canPlacePiece(piece, padCursor.r, padCursor.c);
+      piece.shape.forEach(function(p) {
+        var rr = padCursor.r + p[0], cc = padCursor.c + p[1];
+        if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE) {
+          cellEls[rr][cc].classList.add(ok ? 'preview-ok' : 'preview-bad');
+        }
+      });
+    }
+    cellEls[padCursor.r][padCursor.c].classList.add('pad-cursor');
+  }
+
+  function movePadCursor(dx, dy) {
+    if (gameOver) return;
+    padCursor.c = Math.max(0, Math.min(SIZE - 1, padCursor.c + dx));
+    padCursor.r = Math.max(0, Math.min(SIZE - 1, padCursor.r + dy));
+    renderPadCursor();
+  }
+
+  function switchPadPiece(dir) {
+    if (gameOver || targetMode) return;
+    var next = padSelectedIdx;
+    for (var i = 0; i < 3; i++) {
+      next = (next + dir + 3) % 3;
+      if (hand[next]) { padSelectedIdx = next; break; }
+    }
+    renderHand();
+  }
+
+  function padConfirm() {
+    if (gameOver) return;
+    if (targetMode) {
+      onGridTap(padCursor.r, padCursor.c);
+      renderPadCursor();
+      return;
+    }
+    placeFromHand(padSelectedIdx, padCursor.r, padCursor.c);
+  }
+
+  function handlePadButtonEdge(gp, idx, fn) {
+    var pressed = !!(gp.buttons[idx] && gp.buttons[idx].pressed);
+    var wasPressed = !!padPrevButtons[idx];
+    if (pressed && !wasPressed) fn();
+  }
+
+  function pollGamepad() {
+    requestAnimationFrame(pollGamepad);
+    var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    var gp = null;
+    for (var i = 0; i < pads.length; i++) { if (pads[i]) { gp = pads[i]; break; } }
+    if (!gp) return;
+    if (!padConnected) { padConnected = true; renderPadCursor(); }
+    if (gameOver || paused) { padPrevButtons = gp.buttons.map(function(b) { return b.pressed; }); return; }
+
+    var now = performance.now();
+    var dx = 0, dy = 0;
+    if (gp.buttons[14] && gp.buttons[14].pressed) dx = -1;
+    else if (gp.buttons[15] && gp.buttons[15].pressed) dx = 1;
+    if (gp.buttons[12] && gp.buttons[12].pressed) dy = -1;
+    else if (gp.buttons[13] && gp.buttons[13].pressed) dy = 1;
+    if (dx === 0 && dy === 0) {
+      var axX = gp.axes[0] || 0, axY = gp.axes[1] || 0;
+      if (axX > 0.5) dx = 1; else if (axX < -0.5) dx = -1;
+      if (axY > 0.5) dy = 1; else if (axY < -0.5) dy = -1;
+    }
+    if ((dx !== 0 || dy !== 0) && now - padMoveCooldown > 150) {
+      padMoveCooldown = now;
+      movePadCursor(dx, dy);
+    }
+
+    handlePadButtonEdge(gp, 4, function() { switchPadPiece(-1); }); // LB: 前のピース
+    handlePadButtonEdge(gp, 5, function() { switchPadPiece(1); });  // RB: 次のピース
+    handlePadButtonEdge(gp, 0, padConfirm);                         // A: 配置/爆破確定
+    handlePadButtonEdge(gp, 3, function() { if (superReady && !targetMode) activateSuperTarget(); }); // Y: 必殺技
+
+    padPrevButtons = gp.buttons.map(function(b) { return b.pressed; });
+  }
+
+  window.addEventListener('gamepadconnected', function() {
+    padConnected = true;
+    showToast('コントローラー接続!十字キー移動/A配置/LB・RB切替/Y必殺技');
+    renderPadCursor();
+  });
+  window.addEventListener('gamepaddisconnected', function() {
+    padConnected = false;
+    renderPadCursor();
+  });
+
+  function flashScreen() {
+    flashEl.style.transition = 'none';
+    flashEl.style.opacity = '0.55';
+    requestAnimationFrame(function() {
+      flashEl.style.transition = 'opacity 0.4s ease';
+      flashEl.style.opacity = '0';
+    });
+  }
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.style.transition = 'none';
+    toastEl.style.opacity = '1';
+    toastEl.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function() {
+      toastEl.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      toastEl.style.opacity = '0';
+      toastEl.style.transform = 'translateX(-50%) translateY(-10px)';
+    }, 900);
+  }
+
+  function updateHud() {
+    scoreValEl.textContent = score;
+    highValEl.textContent = Math.max(highScore, score);
+    comboMaxValEl.textContent = comboMax;
+    comboNumEl.textContent = combo;
+    var pct = Math.min(100, (combo / 10) * 100);
+    comboBarInner.style.width = pct + '%';
+    superBtn.classList.toggle('active', superReady && !targetMode);
+  }
+
+  function render() {
+    for (var r = 0; r < SIZE; r++) {
+      for (var c = 0; c < SIZE; c++) {
+        var cell = grid[r][c];
+        var el = cellEls[r][c];
+        el.classList.remove('crack');
+        if (cell) {
+          el.classList.add('filled');
+          el.style.background = cell.color;
+          el.textContent = cell.type !== 'normal' ? SPECIAL_ICON[cell.type] : '';
+          if (cell.type === 'ice' && cell.hp === 1) {
+            el.classList.add('crack');
+          }
+          if (cell.locked) {
+            el.style.filter = 'grayscale(0.5) brightness(0.7)';
+          } else {
+            el.style.filter = '';
+          }
+        } else {
+          el.classList.remove('filled');
+          el.style.background = '';
+          el.style.filter = '';
+          el.textContent = '';
+        }
+      }
+    }
+  }
+
+  function triggerGameOver() {
+    gameOver = true;
+    var isRecord = score > highScore;
+    if (isRecord) {
+      highScore = score;
+      saveHighScore(highScore);
+      playRecordSound();
+    } else {
+      playGameOverSound();
+    }
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('finalHigh').textContent = highScore;
+    document.getElementById('finalCombo').textContent = comboMax;
+    document.getElementById('newRecord').style.display = isRecord ? 'block' : 'none';
+    overlay.classList.remove('hidden');
+    renderPadCursor();
+  }
+
+  function startGame() {
+    initGrid();
+    buildGridDom();
+    score = 0;
+    combo = 0;
+    comboMax = 0;
+    comboFiredAt = { 3:false, 5:false, 8:false };
+    superReady = false;
+    targetMode = false;
+    gameOver = false;
+    paused = false;
+    pauseOverlay.classList.add('hidden');
+    highScore = loadHighScore();
+    titleHighValEl.textContent = highScore;
+    padCursor = { r: 0, c: 0 };
+    padSelectedIdx = 0;
+    // 再開直後のボタン押しっぱなしを「新規押下」と誤検知しないよう、現在の実ボタン状態で初期化する
+    (function() {
+      var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      for (var i = 0; i < pads.length; i++) {
+        if (pads[i]) { padPrevButtons = pads[i].buttons.map(function(b) { return b.pressed; }); return; }
+      }
+      padPrevButtons = [];
+    })();
+    overlay.classList.add('hidden');
+    updateHud();
+    render();
+    generateHand();
+
+    gridEl.querySelectorAll('.cell').forEach(function(cellEl) {
+      cellEl.addEventListener('pointerdown', function() {
+        onGridTap(parseInt(cellEl.dataset.r, 10), parseInt(cellEl.dataset.c, 10));
+      });
+    });
+  }
+
+  superBtn.addEventListener('click', activateSuperTarget);
+  document.getElementById('restartBtn').addEventListener('click', startGame);
+
+  startGame();
+  paused = true; // 「タップしてスタート」画面を閉じるまで盤面操作を無効化しておく
+  requestAnimationFrame(pollGamepad);
+})();
+</script>
+</body>
+</html>

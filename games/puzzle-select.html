@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>パズルゲーム選択 | ナマコゲームズ</title>
+<meta name="description" content="ナマコゲームズのパズルゲーム一覧。遊びたい作品を選んでください。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+JP:wght@500;700&display=swap" rel="stylesheet">
+<script data-goatcounter="https://namakofactory.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<style>
+  :root{
+    --navy:#0d1730; --navy-2:#16204a; --panel:#131b3aee; --panel-edge:#3a4a8a;
+    --gold:#e8c96a; --gold-dark:#8a6f2e; --ink:#eef1ff; --sub:#aab4e0; --red:#ff5b6a;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; }
+  body{
+    height:100vh; overflow:hidden;
+    background:#05070f;
+    font-family:'Noto Sans JP',sans-serif;
+    color:var(--ink);
+  }
+  .pixel{ font-family:'Press Start 2P',monospace; }
+
+  .scene{
+    position:relative; width:100%; height:100vh;
+    display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+
+  .bg{
+    position:absolute; inset:0; overflow:hidden; z-index:0;
+    background-image:url('../assets/town-bg.jpg');
+    background-size:cover; background-position:center bottom;
+  }
+
+  .frame{
+    position:relative; flex:1; min-height:0; margin:10px; border:6px solid var(--navy-2); outline:3px solid var(--gold);
+    outline-offset:-11px; box-shadow:inset 0 0 0 3px #050a1c;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:24px 4%; gap:18px; z-index:1;
+  }
+  .corner{ position:absolute; width:14px; height:14px; background:var(--gold); }
+  .corner.tl{ top:-8px; left:-8px; } .corner.tr{ top:-8px; right:-8px; }
+  .corner.bl{ bottom:-8px; left:-8px; } .corner.br{ bottom:-8px; right:-8px; }
+
+  .back-link{
+    align-self:flex-start; display:inline-flex; align-items:center; gap:6px;
+    color:var(--sub); text-decoration:none; font-size:12px; letter-spacing:0.03em;
+  }
+  .back-link:hover{ color:var(--gold); }
+
+  .window{
+    background:var(--panel); border:3px solid var(--panel-edge); box-shadow:inset 0 0 0 2px #05070f;
+    width:100%; max-width:640px; padding:0 0 18px;
+  }
+  .titlebar{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:linear-gradient(180deg,#2c3d78,#1a2450); padding:12px 16px;
+    font-size:clamp(14px,2.4vw,20px); color:var(--red); border-bottom:3px solid var(--panel-edge);
+  }
+  .titlebar .jp{ color:var(--ink); font-family:'Noto Sans JP',sans-serif; font-size:15px; margin-left:6px; }
+  .titlebar .close{ color:var(--sub); font-size:16px; }
+
+  .tiles{ display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:20px; }
+  @media (max-width:520px){ .tiles{ grid-template-columns:1fr; } }
+  .tile{
+    display:flex; flex-direction:column; align-items:center; gap:8px; text-decoration:none;
+    background:#0e1530; border:2px solid var(--panel-edge); padding:18px 12px; color:var(--ink);
+    transition:transform 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .tile:hover{ transform:translateY(-3px); border-color:var(--gold); background:#182050; }
+  .tile .icon{ font-size:40px; }
+  .tile .label{ font-size:14px; letter-spacing:0.03em; text-align:center; font-weight:700; }
+  .tile .desc{ font-size:11px; color:var(--sub); text-align:center; }
+
+  .dialog{
+    width:100%; max-width:560px; background:#0e1530; border:3px solid var(--panel-edge);
+    box-shadow:inset 0 0 0 2px #05070f; padding:11px 16px 8px; font-size:clamp(10px,1.6vw,13px);
+    color:var(--ink); text-align:left;
+  }
+  .dialog .lead{ color:var(--sub); }
+
+  .copyright{ font-size:13px; color:var(--sub); letter-spacing:0.08em; opacity:0.9; text-shadow:0 1px 3px #000, 0 0 6px rgba(0,0,0,0.8); }
+
+  @media (max-width:640px){
+    body{ height:auto; min-height:100vh; overflow-y:auto; overflow-x:hidden; }
+    .scene{ height:auto; min-height:100vh; }
+    .frame{ flex:none; }
+  }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <div class="bg"></div>
+
+    <div class="frame">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+
+      <a class="back-link pixel" href="../index.html">◀ BACK</a>
+
+      <div class="window">
+        <div class="titlebar"><span class="pixel">PUZZLE</span><span class="jp">パズルゲーム</span><span class="close">×</span></div>
+        <div class="tiles">
+          <a class="tile" href="fruit-merge.html">
+            <span class="icon">🪙</span>
+            <span class="label">まんまるコイン</span>
+            <span class="desc">コインを合体させる<br>マージパズル</span>
+          </a>
+          <a class="tile" href="chain-blaster.html">
+            <span class="icon">💥</span>
+            <span class="label">チェインブラスター</span>
+            <span class="desc">置いて消す配置パズル<br>コンボで必殺技</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="dialog pixel">
+        <span class="lead">SELECT A GAME</span><br>
+        ▶ 遊びたいパズルを選んでください
+      </div>
+      <div class="copyright pixel">© 2026 NAMAKOFACTORY</div>
+    </div>
+  </div>
+</body>
+</html>
