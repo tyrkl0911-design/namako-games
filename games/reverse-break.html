@@ -22,6 +22,7 @@
     font-family:"Zen Maru Gothic", sans-serif;
     display:flex;
     justify-content:center;
+    align-items:flex-start;
     padding-block:10px 14px;
   }
   .page{
@@ -292,9 +293,9 @@
         <button id="speedBtn" aria-pressed="false">1x</button>
         <button id="muteBtn" aria-pressed="false" aria-label="サウンドのオン・オフ">🔊</button>
       </div>
-      <div class="hint">タップ / Space / コントローラーAで発射・反転(コントローラーB)・倍速ボタン(X / コントローラーY)で1x⇔2x・🔊ボタンでサウンドのオン/オフ</div>
+      <div class="hint">⏸で操作方法を確認</div>
     </div>
-    <div class="hint" id="padStatus" style="text-align:center;margin-top:-4px">🎮 コントローラー: 未接続(接続すると自動で使えます)</div>
+    <div class="hint" id="padStatus" style="text-align:center;margin-top:-4px">🎮 コントローラー未接続</div>
   </div>
 </div>
 
@@ -994,12 +995,12 @@
   var padStatus=document.getElementById('padStatus');
   window.addEventListener('gamepadconnected',function(e){
     gpIndex=e.gamepad.index;
-    if(padStatus) padStatus.textContent='🎮 コントローラー接続中: '+e.gamepad.id;
+    if(padStatus) padStatus.textContent='🎮 コントローラー接続中';
   });
   window.addEventListener('gamepaddisconnected',function(e){
     if(gpIndex===e.gamepad.index){
       gpIndex=null;
-      if(padStatus) padStatus.textContent='🎮 コントローラー: 未接続(接続すると自動で使えます)';
+      if(padStatus) padStatus.textContent='🎮 コントローラー未接続';
     }
   });
 
