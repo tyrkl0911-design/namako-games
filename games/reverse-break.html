@@ -26,13 +26,12 @@
   }
   .page{
     width:100%;
-    max-width:460px;
+    max-width:640px;
     padding-inline:16px;
     display:flex;
     flex-direction:column;
     align-items:center;
     gap:18px;
-    transform-origin:top center;
   }
   h1{
     font-family:"DotGothic16", monospace;
@@ -234,7 +233,7 @@
 
 <div class="page" id="pageRoot">
   <h1>リバースブレイク</h1>
-  <div class="tagline">上下反転 × 2球バトル × ボス戦。倍速&コントローラー対応。</div>
+  <div class="tagline">上下反転 × ボール増殖 × ボス戦。倍速&コントローラー対応。</div>
 
   <div class="cabinet">
     <div class="hud">
@@ -251,22 +250,24 @@
 
       <div class="overlay" id="startOverlay">
         <h2>GAME START</h2>
-        <p>パドルはドラッグ / 矢印キー / コントローラーのスティック・十字キーで移動。タップ / Space / コントローラーAボタンでボール発射・メニュー決定。反転ボタン(Space / コントローラーBボタン)で上下の攻め先を切り替える。上下のブロックを全て壊すとステージクリア。画面中央の<b>モンスター</b>はブロックを壊すとダメージを受け、倒すと見た目の違う次のモンスターが次々に現れる。モンスターはランダムな角度で弾を放ってくるので、パドルの左右移動で避けろ。発射から5秒後にボールが2個になり、以降10秒ごとにさらに増えていく。倍速ボタン(X / コントローラーY)でスピード切り替え可。3ステージ勝ち抜くごとに(4・8・12ステージ目)ボスが出現する。プレイ中は⏸ボタン(P / Escape / コントローラーStart)でいつでも遊び方を見返せる。</p>
+        <p>パドルはドラッグ / 矢印キー / コントローラーのスティック・十字キーで移動。タップ / Space / コントローラーAボタンでボール発射。反転ボタン(Space / コントローラーBボタン)で上下の攻め先を切り替える。<br><br>くわしいルール(モンスター・ボス・ボール増加など)はプレイ中に⏸ボタン(P / Escape / コントローラーStart)でいつでも確認できる。</p>
         <button id="startBtn">はじめる</button>
       </div>
 
       <div class="overlay" id="pauseOverlay" hidden>
         <h2>PAUSE</h2>
         <div class="pause-legend">
-          <div><span class="dot" style="background:var(--green)"></span><b>耐久1</b> のブロック。1発で破壊。</div>
+          <div><b>ブロックは上下両方</b>に配置されている。反転ボタンで重力方向を反転すると、ボールとパドルの上下関係が入れ替わり、攻める面を切り替えられる。反転には短いクールタイム(例:0.6秒)があり、連打はできない。</div>
+          <div style="margin-top:10px"><span class="dot" style="background:var(--green)"></span><b>耐久1</b> のブロック。1発で破壊。</div>
           <div><span class="dot" style="background:var(--amber)"></span><b>耐久2</b> のブロック。2発で破壊。</div>
           <div style="margin-top:6px">壊したブロックは<b>そのまま消える</b>(再生しない)。並び方はステージごとに変化する。上下のブロックを全て壊すとステージクリア。</div>
-          <div style="margin-top:10px"><b>画面中央のモンスター</b>はブロックを壊すたびにダメージを受ける(耐久が高いブロックほど大ダメージ)。倒すと見た目の違う次のモンスターが際限なく出現し続ける(倒すたびにスコアボーナス)。ステージクリアには影響しない、腕試し用の相手。</div>
+          <div style="margin-top:10px"><b>画面中央のモンスター</b>はブロックを壊すたびにダメージを受ける(耐久が高いブロックほど大ダメージ)。倒すと見た目の違う次のモンスターが際限なく出現し続ける(倒すたびにスコアボーナス)。ステージクリアには影響しない、腕試し用の相手。ステージ2のみ2体同時出現(HPは共有)。</div>
           <div><b>モンスターの技</b>:一定間隔でランダムな角度の弾を放ってくる。反転ではなくパドルの左右移動で避ける。倒した数が増えるほど間隔が短くなり難しくなる。</div>
           <div style="margin-top:10px"><b>ボール発射から5秒後に2個目</b>が自動で発射され、以降は<b>10秒ごとにボールが1個ずつ増え続ける</b>(際限なし)。</div>
           <div><b>倍速ボタン</b>(1x⇔2x)でボール・パドル・妨害弾の速さを切り替えられる。</div>
           <div><b>🔊ボタン</b>でBGM・効果音のオン/オフを切り替えられる(設定は次回プレイ時も記憶される)。</div>
-          <div style="margin-top:10px"><span class="dot" style="background:#5a6280"></span><b>ボス面の装甲</b>。囲まれた<span class="dot" style="background:var(--magenta)"></span><b>コア</b>(装甲を全て崩すと露出)を攻撃してHPを削り切れば撃破。コアHPは上下面で共有。</div>
+          <div style="margin-top:10px">3ステージ勝ち抜くごとに(4・8・12ステージ目)<b>ボスステージ</b>が出現する。</div>
+          <div><span class="dot" style="background:#5a6280"></span><b>ボス面の装甲</b>。囲まれた<span class="dot" style="background:var(--magenta)"></span><b>コア</b>(装甲を全て崩すと露出)を攻撃してHPを削り切れば撃破。コアHPは上下面で共有。</div>
           <div><span class="dot" style="background:var(--amber)"></span><b>妨害弾</b>(ボス面のみ)。反転ではなくパドルの左右移動で避ける。</div>
         </div>
         <button id="resumeBtn">つづける</button>
@@ -1116,25 +1117,43 @@
   updateHud();
 
   var pageRoot=document.getElementById('pageRoot');
-  var supportsZoom = 'zoom' in document.documentElement.style;
+  var fitScreenWrap=document.getElementById('screenWrap');
   function fitToScreen(){
-    pageRoot.style.zoom='';
-    pageRoot.style.transform='';
-    document.body.style.height='';
+    pageRoot.style.width='';
+    pageRoot.style.maxWidth='';
+
     var bodyStyle=window.getComputedStyle(document.body);
     var bodyPadV=parseFloat(bodyStyle.paddingTop)+parseFloat(bodyStyle.paddingBottom);
-    var naturalHeight=pageRoot.getBoundingClientRect().height;
     var availableHeight=window.innerHeight-bodyPadV-8;
-    var factor=Math.max(0.5, Math.min(1, availableHeight/naturalHeight));
-    if(supportsZoom){
-      pageRoot.style.zoom=factor;
-    } else {
-      pageRoot.style.transform='scale('+factor+')';
-      document.body.style.height=(naturalHeight*factor+bodyPadV)+'px';
+    var availableWidth=window.innerWidth-8;
+
+    var initialRect=pageRoot.getBoundingClientRect();
+    if(initialRect.height<=availableHeight && initialRect.width<=availableWidth) return;
+
+    var lastWidth=initialRect.width;
+    for(var i=0;i<4;i++){
+      var pageRect=pageRoot.getBoundingClientRect();
+      var wrapRect=fitScreenWrap.getBoundingClientRect();
+      var chromeHeight=pageRect.height-wrapRect.height;
+      var chromeWidth=pageRect.width-wrapRect.width;
+      var aspect=wrapRect.height/wrapRect.width;
+
+      var wrapWidthFromHeight=(availableHeight-chromeHeight)/aspect;
+      var wrapWidthFromWidth=availableWidth-chromeWidth;
+      var targetWrapWidth=Math.max(180, Math.min(wrapWidthFromHeight, wrapWidthFromWidth, wrapRect.width));
+      var targetPageWidth=Math.round(targetWrapWidth+chromeWidth);
+
+      pageRoot.style.width=targetPageWidth+'px';
+      pageRoot.style.maxWidth=targetPageWidth+'px';
+
+      var afterRect=pageRoot.getBoundingClientRect();
+      if(afterRect.height<=availableHeight+1 && Math.abs(targetPageWidth-lastWidth)<2) break;
+      lastWidth=targetPageWidth;
     }
   }
   fitToScreen();
   window.addEventListener('resize',fitToScreen);
+  window.addEventListener('orientationchange',function(){ setTimeout(fitToScreen,50); });
   window.addEventListener('load',fitToScreen);
 
   function snapshot(){
