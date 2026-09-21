@@ -1117,20 +1117,18 @@
 
   var pageRoot=document.getElementById('pageRoot');
   var fitScreenWrap=document.getElementById('screenWrap');
+  var FIT_PROBE_WIDTH=960;
   function fitToScreen(){
-    pageRoot.style.width='';
-    pageRoot.style.maxWidth='';
-
     var bodyStyle=window.getComputedStyle(document.body);
     var bodyPadV=parseFloat(bodyStyle.paddingTop)+parseFloat(bodyStyle.paddingBottom);
     var availableHeight=window.innerHeight-bodyPadV-8;
     var availableWidth=window.innerWidth-8;
 
-    var initialRect=pageRoot.getBoundingClientRect();
-    if(initialRect.height<=availableHeight && initialRect.width<=availableWidth) return;
+    pageRoot.style.width=FIT_PROBE_WIDTH+'px';
+    pageRoot.style.maxWidth=FIT_PROBE_WIDTH+'px';
 
-    var lastWidth=initialRect.width;
-    for(var i=0;i<4;i++){
+    var lastWidth=FIT_PROBE_WIDTH;
+    for(var i=0;i<6;i++){
       var pageRect=pageRoot.getBoundingClientRect();
       var wrapRect=fitScreenWrap.getBoundingClientRect();
       var chromeHeight=pageRect.height-wrapRect.height;
@@ -1139,14 +1137,14 @@
 
       var wrapWidthFromHeight=(availableHeight-chromeHeight)/aspect;
       var wrapWidthFromWidth=availableWidth-chromeWidth;
-      var targetWrapWidth=Math.max(180, Math.min(wrapWidthFromHeight, wrapWidthFromWidth, wrapRect.width));
+      var wrapWidthCap=FIT_PROBE_WIDTH-chromeWidth;
+      var targetWrapWidth=Math.max(180, Math.min(wrapWidthFromHeight, wrapWidthFromWidth, wrapWidthCap));
       var targetPageWidth=Math.round(targetWrapWidth+chromeWidth);
 
       pageRoot.style.width=targetPageWidth+'px';
       pageRoot.style.maxWidth=targetPageWidth+'px';
 
-      var afterRect=pageRoot.getBoundingClientRect();
-      if(afterRect.height<=availableHeight+1 && Math.abs(targetPageWidth-lastWidth)<2) break;
+      if(Math.abs(targetPageWidth-lastWidth)<2) break;
       lastWidth=targetPageWidth;
     }
   }
