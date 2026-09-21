@@ -87,7 +87,7 @@
   .screen-wrap{
     position:relative;
     width:100%;
-    aspect-ratio:360/640;
+    aspect-ratio:480/560;
     background:var(--screen);
     border-radius:10px;
     overflow:hidden;
@@ -244,7 +244,7 @@
     </div>
 
     <div class="screen-wrap" id="screenWrap">
-      <canvas id="game" width="360" height="640"></canvas>
+      <canvas id="game" width="480" height="560"></canvas>
       <div class="scanlines"></div>
       <button class="pause-icon-btn" id="pauseBtn" aria-label="ポーズ" hidden>⏸</button>
 
@@ -301,7 +301,7 @@
 
 <script>
 (function(){
-  var W=360,H=640;
+  var W=480,H=560;
   var canvas=document.getElementById('game');
   var ctx=canvas.getContext('2d');
 
@@ -309,7 +309,7 @@
   var colW=W/COLS;
   var zoneTopWallY=ZONE_START+ROWS*ROWH;
   var zoneBottomWallY=H-zoneTopWallY;
-  var PADDLE_MARGIN=26, PADDLE_W=72, PADDLE_H=10, BALL_R=6;
+  var PADDLE_MARGIN=26, PADDLE_W=84, PADDLE_H=12, BALL_R=7;
 
   function topRowY(i){return ZONE_START+i*ROWH;}
   function bottomRowY(i){return H-ZONE_START-BRICKH-i*ROWH;}
@@ -857,7 +857,7 @@
       var mx=W/2, my=midY+bob;
       var hpFrac=Math.max(monsterHP,0)/monsterMaxHP;
 
-      var mBarW=64, mBarH=7;
+      var mBarW=76, mBarH=8;
       var mBarX=mx-mBarW/2, mBarY=midY-30;
       ctx.font='9px "DotGothic16", monospace';
       ctx.textAlign='center';
@@ -871,7 +871,7 @@
       ctx.fillStyle = hpFrac>0.5 ? '#6dffb0' : (hpFrac>0.25 ? '#ffcf4d' : '#ff4d94');
       ctx.fillRect(mBarX,mBarY,mBarW*hpFrac,mBarH);
 
-      var S=4;
+      var S=5;
       var pattern=[
         '01111110',
         '11111111',
