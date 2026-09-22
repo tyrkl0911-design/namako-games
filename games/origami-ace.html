@@ -63,6 +63,8 @@
   body{
     background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-bottom) 100%);
     min-height:100%;
+    min-height:100vh;
+    min-height:100dvh;
     display:flex;
     flex-direction:column;
     align-items:center;
@@ -333,6 +335,66 @@
     max-width:380px;
   }
 
+  .touch-controls{
+    display:none;
+    width:100%;
+    max-width:420px;
+    margin-top:18px;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    -webkit-user-select:none;
+    user-select:none;
+    touch-action:none;
+  }
+  @media (pointer:coarse){
+    .touch-controls{ display:flex; }
+  }
+  .dpad{
+    position:relative;
+    width:126px; height:126px;
+    flex:0 0 auto;
+  }
+  .dpad-btn{
+    position:absolute;
+    width:42px; height:42px;
+    border:none;
+    border-radius:10px;
+    background:rgba(107,88,71,.16);
+    color:var(--ink);
+    font-size:16px;
+    line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 0 rgba(20,10,0,.15);
+    touch-action:none;
+  }
+  .dpad-btn.up{ top:0; left:42px; }
+  .dpad-btn.down{ top:84px; left:42px; }
+  .dpad-btn.left{ top:42px; left:0; }
+  .dpad-btn.right{ top:42px; left:84px; }
+  .dpad-btn.pressed{ background:var(--gold); color:var(--gold-ink); transform:translateY(1px); box-shadow:0 1px 0 rgba(20,10,0,.15); }
+  .action-pad{
+    display:flex;
+    align-items:flex-end;
+    gap:10px;
+    flex:0 0 auto;
+  }
+  .action-btn{
+    width:52px; height:52px;
+    border:none;
+    border-radius:50%;
+    color:#fff5ee;
+    font-weight:700;
+    font-size:14px;
+    line-height:1;
+    box-shadow:0 3px 0 rgba(20,10,0,.2);
+    touch-action:none;
+  }
+  .action-btn.spread{ background:var(--teal); }
+  .action-btn.beam{ background:var(--red); margin-bottom:16px; }
+  .action-btn.bomb{ background:var(--purple); }
+  .action-btn.pressed{ filter:brightness(1.18); transform:translateY(2px); box-shadow:0 1px 0 rgba(20,10,0,.2); }
+
   @media (prefers-reduced-motion: reduce){
     button.cta{ transition:none; }
   }
@@ -379,6 +441,7 @@
           <span class="chip"><b>C</b> — ボム</span>
           <span class="chip"><b>P</b> — 一時停止</span>
           <span class="chip">🎮 ○ 3方向弾 · ✕ ビーム · □ ボム · Options 一時停止</span>
+          <span class="chip">📱 画面下の十字キー・ボタンでも操作可</span>
         </div>
         <p class="hs">これまでの最高記録: <b id="hsStart">0</b> pt</p>
         <button class="cta" id="btnStart">スタート ▸</button>
@@ -418,6 +481,20 @@
         <button class="cta" id="btnResume">再開 ▸</button>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="touch-controls" id="touchControls" hidden>
+  <div class="dpad" id="dpad">
+    <button type="button" class="dpad-btn up" data-dir="up" aria-label="上へ移動">▲</button>
+    <button type="button" class="dpad-btn down" data-dir="down" aria-label="下へ移動">▼</button>
+    <button type="button" class="dpad-btn left" data-dir="left" aria-label="左へ移動">◀</button>
+    <button type="button" class="dpad-btn right" data-dir="right" aria-label="右へ移動">▶</button>
+  </div>
+  <div class="action-pad">
+    <button type="button" class="action-btn spread" id="btnTouchSpread" aria-label="3方向弾">○</button>
+    <button type="button" class="action-btn beam" id="btnTouchBeam" aria-label="ビーム">✕</button>
+    <button type="button" class="action-btn bomb" id="btnTouchBomb" aria-label="ボム">□</button>
   </div>
 </div>
 
@@ -587,6 +664,7 @@
   }
   function backToTitle(){
     state = 'start';
+    syncTouchControls();
     refreshGekitouUI();
     if (difficulty === 'gekitou' && !isGekitouUnlocked()){
       setDifficulty('hard');
@@ -656,6 +734,63 @@
     var y = (t.clientY - rect.top) / rect.height * H;
     touchTarget = {x:x, y:y};
   }
+
+  // drag anywhere in the blank margin below the play area also moves the plane
+  var marginDragActive = false;
+  function updateMarginTouch(e){
+    var rect = canvas.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width * W;
+    var y = (e.clientY - rect.top) / rect.height * H;
+    touchTarget = {x:x, y:y};
+  }
+  document.body.addEventListener('pointerdown', function(e){
+    if (state !== 'playing' || e.target !== document.body) return;
+    e.preventDefault();
+    marginDragActive = true;
+    try { document.body.setPointerCapture(e.pointerId); } catch(err){}
+    updateMarginTouch(e);
+  });
+  document.body.addEventListener('pointermove', function(e){
+    if (!marginDragActive || e.target !== document.body) return;
+    e.preventDefault();
+    updateMarginTouch(e);
+  });
+  document.body.addEventListener('pointerup', function(){
+    if (!marginDragActive) return;
+    marginDragActive = false;
+    touchTarget = null;
+  });
+  document.body.addEventListener('pointercancel', function(){
+    marginDragActive = false;
+    touchTarget = null;
+  });
+
+  // on-screen D-pad + action buttons (touch controllers)
+  var touchDir = {up:false, down:false, left:false, right:false};
+  var touchSpreadHeld = false;
+  var touchBeamHeld = false;
+  var touchBombDown = false;
+  function bindHoldButton(el, onPress, onRelease){
+    if (!el) return;
+    el.addEventListener('pointerdown', function(e){ e.preventDefault(); onPress(); el.classList.add('pressed'); });
+    el.addEventListener('pointerup', function(){ onRelease(); el.classList.remove('pressed'); });
+    el.addEventListener('pointercancel', function(){ onRelease(); el.classList.remove('pressed'); });
+    el.addEventListener('pointerleave', function(){ onRelease(); el.classList.remove('pressed'); });
+    el.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  }
+  var dpadEl = document.getElementById('dpad');
+  if (dpadEl){
+    var dpadBtns = dpadEl.querySelectorAll('.dpad-btn');
+    for (var di=0; di<dpadBtns.length; di++){
+      (function(btn){
+        var dir = btn.getAttribute('data-dir');
+        bindHoldButton(btn, function(){ touchDir[dir]=true; }, function(){ touchDir[dir]=false; });
+      })(dpadBtns[di]);
+    }
+  }
+  bindHoldButton(document.getElementById('btnTouchSpread'), function(){ ensureAudio(); touchSpreadHeld=true; }, function(){ touchSpreadHeld=false; });
+  bindHoldButton(document.getElementById('btnTouchBeam'), function(){ ensureAudio(); touchBeamHeld=true; }, function(){ touchBeamHeld=false; });
+  bindHoldButton(document.getElementById('btnTouchBomb'), function(){ ensureAudio(); touchBombDown=true; }, function(){ touchBombDown=false; });
 
   // ---------- gamepad (DualSense / standard mapping) ----------
   // Standard browser gamepad mapping: button 0 = Cross(✕) = beam, button 1 = Circle(○) = spread,
@@ -1394,6 +1529,11 @@
     document.getElementById(id).hidden = !show;
   }
 
+  function syncTouchControls(){
+    var el = document.getElementById('touchControls');
+    if (el) el.hidden = (state !== 'playing');
+  }
+
   function startGame(){
     resetGame();
     state='playing';
@@ -1404,12 +1544,13 @@
     screen('victoryScreen', false);
     startBgm();
     lastT = performance.now();
+    syncTouchControls();
     requestAnimationFrame(loop);
   }
 
   function togglePause(){
-    if (state==='playing'){ state='paused'; screen('pauseScreen', true); if (beamSfxOn){ stopBeamSfx(); beamSfxOn=false; } }
-    else if (state==='paused'){ state='playing'; screen('pauseScreen', false); lastT=performance.now(); requestAnimationFrame(loop); }
+    if (state==='playing'){ state='paused'; screen('pauseScreen', true); if (beamSfxOn){ stopBeamSfx(); beamSfxOn=false; } syncTouchControls(); }
+    else if (state==='paused'){ state='playing'; screen('pauseScreen', false); lastT=performance.now(); syncTouchControls(); requestAnimationFrame(loop); }
   }
 
   function endGame(){
@@ -1417,6 +1558,7 @@
     player.alive=false;
     stopBgm();
     if (beamSfxOn){ stopBeamSfx(); beamSfxOn=false; }
+    syncTouchControls();
     sfxGameOver();
     var hs = getHighScore();
     var isNew = score > hs;
@@ -1435,6 +1577,7 @@
     player.alive = false;
     stopBgm();
     if (beamSfxOn){ stopBeamSfx(); beamSfxOn=false; }
+    syncTouchControls();
     sfxVictory();
     var hs = getHighScore();
     var isNew = score > hs;
@@ -1590,6 +1733,10 @@
     if (keys['arrowright']||keys['d']) mx += 1;
     if (keys['arrowup']||keys['w']) my -= 1;
     if (keys['arrowdown']||keys['s']) my += 1;
+    if (touchDir.left) mx -= 1;
+    if (touchDir.right) mx += 1;
+    if (touchDir.up) my -= 1;
+    if (touchDir.down) my += 1;
     var gp = getActiveGamepad();
     if (gp){
       var ga = gamepadMove(gp);
@@ -1613,9 +1760,9 @@
       player.bombCooldown = Math.max(0, player.bombCooldown - dt);
       updateBombHud();
     }
-    var spreadHeld = fireHeld || !!keys['z'];
-    var beamKeyHeld = !!keys['x'];
-    var bombKeyDown = !!keys['c'];
+    var spreadHeld = fireHeld || !!keys['z'] || touchSpreadHeld;
+    var beamKeyHeld = !!keys['x'] || touchBeamHeld;
+    var bombKeyDown = !!keys['c'] || touchBombDown;
     var bombPressed = bombKeyDown && !prevBombKeyDown;
     prevBombKeyDown = bombKeyDown;
     if (gp){
