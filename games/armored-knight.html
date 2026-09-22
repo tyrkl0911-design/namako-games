@@ -1,4 +1,5 @@
 <title>アーマードナイト</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <style>
@@ -74,6 +75,19 @@
   .hud .stage{color:var(--amber);}
   .hud .lives{color:var(--red);}
   .hud .score{color:var(--cyan);}
+  /* screen-frame exists so mobile can make the canvas fill the vertical
+     space left over after the HUD/controls, not just the horizontal space
+     (see the mobile media query below) — on wider layouts it's just a
+     plain full-width box and .screen-wrap sizes off its width as before.
+     Deliberately left at the default grid item alignment (stretch, not
+     place-items:center): stretch is what lets .screen-wrap's width:100%;
+     height:100%; combine with its aspect-ratio to size itself as large as
+     possible while fitting both axes — center would collapse it to its
+     content size instead. */
+  .screen-frame{
+    width:100%;
+    display:grid;
+  }
   .screen-wrap{
     position:relative;
     width:100%;
@@ -197,14 +211,46 @@
   #padStatus{color:var(--green);}
   #padStatus.off{color:var(--ink-dim);}
 
-  /* Phones: the outer padding was eating into the game screen's actual
-     size more than it needed to — trim it so the canvas grows. */
+  /* Phones: trim the outer chrome (padding/gaps/HUD text) as far as it'll
+     go so the width-driven 16:9 canvas gets every spare pixel of width —
+     that's the only axis it can actually grow on here, since its own
+     aspect ratio caps its height once the width is set. Whatever vertical
+     space is left below it (there's always some, since a 16:9 box on a
+     tall phone never reaches the bottom) goes to the virtual controller,
+     pinned to the very bottom of that space instead of floating centered
+     in it, so the pad/buttons read as sitting "in the margin" rather than
+     stranded in the middle of a gap. */
   @media (max-width:600px){
-    body{ padding-block:10px 16px; }
-    .page{ padding-inline:6px; gap:10px; }
-    .cabinet{ padding:8px 8px 12px; gap:8px; }
-    h1{ font-size:clamp(18px,6vw,24px); }
-    .tagline{ font-size:11px; margin-top:-4px; }
+    html,body{ height:100%; }
+    body{ padding-block:4px 6px; }
+    .page{
+      padding-inline:2px;
+      gap:4px;
+      /* fill the whole viewport height so nothing is left as dead space
+         below the cabinet — vh first as a fallback for browsers without
+         dvh support, dvh after to win on ones that have it */
+      height:calc(100vh - 10px);
+      height:calc(100dvh - 10px);
+    }
+    h1{ font-size:14px; }
+    .tagline{ display:none; }
+    .hud{ font-size:10.5px; }
+    .cabinet{
+      flex:1;
+      min-height:0;
+      padding:4px 4px 8px;
+      gap:4px;
+    }
+    .controls{
+      flex:1;
+      min-height:0;
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      padding-bottom:4px;
+    }
+    .dbtn, .abtn{ width:66px; height:66px; font-size:22px; }
+    .sub-row{ font-size:10px; }
   }
 </style>
 
@@ -219,40 +265,42 @@
       <span id="weaponVal">🔱 槍</span>
       <span class="score">SCORE <span id="scoreVal">0</span></span>
     </div>
-    <div class="screen-wrap">
-      <canvas id="game" width="384" height="216"></canvas>
-      <audio id="bgmAudio" src="bgm.mp3" loop preload="auto"></audio>
-      <div class="overlay" id="titleOverlay">
-        <h2>ARMORED KNIGHT</h2>
-        <p>鎧1枚が命綱の横スクロールアクション。<br>操作方法はプレイ中に⏸(ポーズ)でいつでも確認できる。</p>
-        <button class="btn" id="startBtn">スタート</button>
-      </div>
-      <div class="overlay" id="deadOverlay" hidden>
-        <h2>MISS</h2>
-        <p id="deadMsg"></p>
-        <button class="btn" id="continueBtn">つづける</button>
-      </div>
-      <div class="overlay" id="overOverlay" hidden>
-        <h2>GAME OVER</h2>
-        <p id="overMsg"></p>
-        <button class="btn" id="retryBtn">最初から</button>
-      </div>
-      <div class="overlay" id="clearOverlay" hidden>
-        <h2 id="clearTitle">STAGE CLEAR!</h2>
-        <p id="clearMsg"></p>
-        <button class="btn" id="clearRetryBtn">もう一度遊ぶ</button>
-      </div>
-      <div class="overlay" id="pauseOverlay" hidden>
-        <h2>PAUSE</h2>
-        <p>
-          矢印キー/仮想パッド/コントローラーで移動・ジャンプ(空中でもう一度ジャンプ可能な2段ジャンプ)、Z・攻撃ボタンで武器を投げる。<br>
-          鎧が脱げたらもう1発で死亡。<br>
-          幅の広い落とし穴は、手前の高台に登ってから飛ぶと渡りやすい。<br>
-          斧を拾うと、槍とほぼ同じ射程で、低い弧を描いて飛ぶ攻撃力1.5倍の武器に変わる。<br><br>
-          PC: ←→移動 / X or ↑ ジャンプ(2段可) / Z 攻撃 / P ポーズ<br>
-          コントローラー: 十字キー移動・A ジャンプ(2段可)・X or B 攻撃・Start ポーズ/決定
-        </p>
-        <button class="btn" id="resumeBtn">再開する</button>
+    <div class="screen-frame">
+      <div class="screen-wrap">
+        <canvas id="game" width="384" height="216"></canvas>
+        <audio id="bgmAudio" src="bgm.mp3" loop preload="auto"></audio>
+        <div class="overlay" id="titleOverlay">
+          <h2>ARMORED KNIGHT</h2>
+          <p>鎧1枚が命綱の横スクロールアクション。<br>操作方法はプレイ中に⏸(ポーズ)でいつでも確認できる。</p>
+          <button class="btn" id="startBtn">スタート</button>
+        </div>
+        <div class="overlay" id="deadOverlay" hidden>
+          <h2>MISS</h2>
+          <p id="deadMsg"></p>
+          <button class="btn" id="continueBtn">つづける</button>
+        </div>
+        <div class="overlay" id="overOverlay" hidden>
+          <h2>GAME OVER</h2>
+          <p id="overMsg"></p>
+          <button class="btn" id="retryBtn">最初から</button>
+        </div>
+        <div class="overlay" id="clearOverlay" hidden>
+          <h2 id="clearTitle">STAGE CLEAR!</h2>
+          <p id="clearMsg"></p>
+          <button class="btn" id="clearRetryBtn">もう一度遊ぶ</button>
+        </div>
+        <div class="overlay" id="pauseOverlay" hidden>
+          <h2>PAUSE</h2>
+          <p>
+            矢印キー/仮想パッド/コントローラーで移動・ジャンプ(空中でもう一度ジャンプ可能な2段ジャンプ)、Z・攻撃ボタンで武器を投げる。<br>
+            鎧が脱げたらもう1発で死亡。<br>
+            幅の広い落とし穴は、手前の高台に登ってから飛ぶと渡りやすい。<br>
+            斧を拾うと、槍とほぼ同じ射程で、低い弧を描いて飛ぶ攻撃力1.5倍の武器に変わる。<br><br>
+            PC: ←→移動 / X or ↑ ジャンプ(2段可) / Z 攻撃 / P ポーズ<br>
+            コントローラー: 十字キー移動・A ジャンプ(2段可)・X or B 攻撃・Start ポーズ/決定
+          </p>
+          <button class="btn" id="resumeBtn">再開する</button>
+        </div>
       </div>
     </div>
     <div class="controls">
