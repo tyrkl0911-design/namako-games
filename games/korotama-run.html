@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>コロタマ走</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #14202e;
+    font-family: 'Courier New', monospace;
+    color: #eee;
+    overflow: hidden;
+    touch-action: none;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 6px;
+    gap: 6px;
+    /* 画面の幅・高さのどちらに対しても収まる最大サイズ(上限1300px)まで、ゲーム画面をできるだけ大きくする */
+    --game-w: min(96vw, 1300px, max(120px, calc((100vh - 190px) * 1.77778)));
+  }
+  h1 {
+    margin: 2px 0;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: #ffe066;
+    text-shadow: 2px 2px 0 #ff8a3d, 4px 4px 0 #14202e;
+  }
+  #titleRow { display: flex; align-items: center; gap: 10px; }
+  #muteBtn, #pauseBtn {
+    background: #1e2f42;
+    border: 2px solid #3a5a78;
+    border-radius: 6px;
+    color: #eee;
+    font-size: 16px;
+    width: 34px;
+    height: 34px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: var(--game-w);
+    font-size: 12px;
+    padding: 0 4px;
+  }
+  #hud .box { text-align: center; min-width: 64px; }
+  #hud .label { font-size: 9px; color: #7fa8cc; }
+  #hud .val { font-size: 16px; color: #7CFFB2; font-weight: bold; }
+
+  #stageBarWrap { width: 100%; max-width: var(--game-w); padding: 0 4px; }
+  #stageLabel { font-size: 11px; color: #ffe066; display: flex; justify-content: space-between; margin-bottom: 2px; }
+  #stageBarOuter {
+    width: 100%; height: 12px; background: #1e2f42;
+    border: 2px solid #3a5a78; border-radius: 4px; overflow: hidden; position: relative;
+  }
+  #stageBarInner {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg,#ffd166,#ff8a3d);
+    transition: width .25s;
+  }
+
+  #stage {
+    position: relative;
+    width: var(--game-w);
+    max-width: var(--game-w);
+    aspect-ratio: 480/270;
+  }
+  canvas {
+    width: 100%; height: 100%;
+    border: 3px solid #3a5a78;
+    border-radius: 8px;
+    display: block;
+    background: #7ec9e8;
+  }
+  #hint {
+    position: absolute; left: 0; right: 0; bottom: 10%;
+    text-align: center; font-size: 13px; color: #fff;
+    text-shadow: 1px 1px 2px #000;
+    pointer-events: none;
+    animation: blink 1.2s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(10,16,24,.86);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; text-align: center; padding: 12px; border-radius: 8px;
+  }
+  .overlay h2 { margin: 0; font-size: 20px; color: #ffe066; }
+  .overlay p { margin: 2px 0; font-size: 13px; color: #cde; }
+  .overlay .rank { font-size: 34px; margin: 4px 0; }
+  .btnRow { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; justify-content: center; }
+  .gbtn {
+    background: #ff8a3d; color: #1a1208; border: none; border-radius: 8px;
+    padding: 10px 16px; font-size: 13px; font-weight: bold; cursor: pointer;
+  }
+  .gbtn.secondary { background: #3a5a78; color: #eee; }
+  [hidden] { display: none !important; }
+
+  #footer { font-size: 10px; color: #557; max-width: var(--game-w); text-align: center; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="titleRow">
+    <h1>コロタマ走</h1>
+    <button id="muteBtn" title="ミュート">🔊</button>
+    <button id="pauseBtn" title="一時停止">⏸</button>
+  </div>
+
+  <div id="hud">
+    <div class="box"><div class="label">距離</div><div class="val" id="valDist">0m</div></div>
+    <div class="box"><div class="label">コイン</div><div class="val" id="valCoin">0</div></div>
+    <div class="box"><div class="label">姿</div><div class="val" id="valStage">タマゴ</div></div>
+    <div class="box"><div class="label">ベスト距離</div><div class="val" id="valBest">0m</div></div>
+  </div>
+
+  <div id="stageBarWrap">
+    <div id="stageLabel"><span>成長ゲージ</span><span id="stageLabelRight">タマゴ(小)</span></div>
+    <div id="stageBarOuter"><div id="stageBarInner"></div></div>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv" width="960" height="540"></canvas>
+    <div id="hint">タップ / クリック / スペースキー / コントローラーのボタンで ジャンプ!(空中でもう一度押すと2段ジャンプ)</div>
+
+    <div class="overlay" id="startOverlay">
+      <h2>🥚 コロタマ走 🦅</h2>
+      <p>ころころ転がるタマゴを走らせて、コインを集めよう。</p>
+      <p>集めるほど大きく育ち、やがて孵化して…巨大な鳥に!?</p>
+      <p>段差のあるバーを飛び上がったり飛び下りたりしながら進む。落ちたら即終了の「穴」に注意!</p>
+      <p>ゴールはなし。進むほどどんどん難しくなるエンドレスモード。どこまで走れるかチャレンジ!</p>
+      <p>操作は1つだけ:タップ/クリック/スペースキー/コントローラーのいずれかのボタンで ジャンプ(空中でもう一度押すと2段ジャンプ)</p>
+      <div class="btnRow"><button class="gbtn" id="startBtn">▶ スタート</button></div>
+    </div>
+
+    <div class="overlay" id="pauseOverlay" hidden>
+      <h2>⏸ 一時停止中</h2>
+      <div class="btnRow"><button class="gbtn" id="resumeBtn">▶ 再開</button></div>
+    </div>
+
+    <div class="overlay" id="endOverlay" hidden>
+      <h2 id="endTitle">ゲームオーバー</h2>
+      <div class="rank" id="endRank">🥚</div>
+      <p id="endStageName">タマゴ(小)のまま終了</p>
+      <p>距離: <span id="endDist">0</span>m / コイン: <span id="endCoin">0</span></p>
+      <div class="btnRow">
+        <button class="gbtn" id="retryBtn">🔁 もう一度</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="footer">BGM: "Some Game Background Music Or Something" by Seth_Makes_Sounds (freesound.org), CC0</div>
+</div>
+
+<audio id="bgm" src="効果音/korotama-bgm.mp3" loop preload="auto"></audio>
+
+<script>
+(function(){
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  // ゲームロジックの座標系は480x270に固定(既存の全ての位置・速度・当たり判定の数値はこの前提でチューニングされている)。
+  // canvas自体の内部解像度(cv.width/height)はCSSで画面いっぱいに拡大表示しても文字がぼやけないよう2倍(960x540)にしてあるため、
+  // ここでスケールを合わせて、以降の描画コードは従来通り480x270の座標のまま書けるようにする。
+  const W = 480, H = 270;
+  ctx.scale(cv.width / W, cv.height / H);
+  const RAMP_DIST = 500; // m。ここまでで基本難易度が最大まで上がる
+  const RAMP2_DIST = 1500; // m。RAMP_DIST以降、ここまでの間にさらに難易度が上乗せされる
+  const RAMP3_SCALE = 1500; // m。RAMP2_DIST以降も、なめらかに(漸近的に)上がり続ける減衰の目安距離。頭打ちせず、その先もずっと難易度が上がっていく(ゴールなしのエンドレス)
+  const JUMP_VY = -300;
+  const GRAVITY = 900;
+  const MAX_JUMPS = 2; // 2段ジャンプ
+  const LANDING_OVERSHOOT_LIMIT = 20; // px。着地時にこれ以上沈み込んでいたら「崖(穴の側面)に激突」として死亡させる
+
+  // ---- 2段ジャンプが必須の「大型」ハザード(岩・穴) ----
+  // 単発ジャンプの最大上昇は JUMP_VY²/(2*GRAVITY) = 50px。2段目を(だいたいのタイミングで)重ねると
+  // 追加でおよそ50〜75px上昇できるため、単発では絶対に届かない高さ・幅にしつつ、2段ジャンプなら
+  // かなり緩いタイミングでも安全に届く範囲に収めてある。
+  const BIG_GATE_X = 3000; // 世界座標(px)。300m相当。ここまでは大型ハザードを出さず、通常の穴・段差・岩だけにする
+  const BIG_VARIANT_CHANCE = 0.3; // BIG_GATE_Xを超えた後、対象の穴・上り段差・岩のうち大型版になる割合
+  const BIG_OBSTACLE_H = 66; // px。単発ジャンプの最大上昇(50px)を超えるが、2段ジャンプなら十分な余裕で届く高さ
+
+  // ---- 地形(高さの異なる「バー」+ 落下する穴) ----
+  const BASE_GROUND_Y = 188;
+  const BAR_Y_MIN = BASE_GROUND_Y - 70, BAR_Y_MAX = BASE_GROUND_Y + 70;
+
+  // platforms: {start, end, y} の並び。区間外(隙間)はplatformAt()がnullを返す = 穴。
+  let platforms = [];
+  let pitZones = []; // {start, end, y}(見た目の崖描画・穴判定用。yは隣接するバーの高さ)
+
+  function platformAt(wx){
+    for (const p of platforms){ if (wx >= p.start && wx < p.end) return p; }
+    return null;
+  }
+  function groundLevel(wx){
+    const p = platformAt(wx);
+    return p ? p.y : null;
+  }
+
+  const bgm = document.getElementById('bgm');
+  let muted = false;
+  let audioUnlocked = false;
+
+  // ---- WebAudio SFX (synth, no external asset needed) ----
+  let actx = null;
+  function ac(){ if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); return actx; }
+  function beep(freq, dur, type, gain, glide){
+    if (muted) return;
+    try{
+      const a = ac();
+      const osc = a.createOscillator();
+      const g = a.createGain();
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, a.currentTime);
+      if (glide) osc.frequency.exponentialRampToValueAtTime(glide, a.currentTime + dur);
+      g.gain.setValueAtTime(gain||0.15, a.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+      osc.connect(g); g.connect(a.destination);
+      osc.start(); osc.stop(a.currentTime + dur);
+    }catch(e){}
+  }
+  const sfxJump  = () => beep(520, 0.12, 'square', 0.12, 720);
+  const sfxDoubleJump = () => beep(700, 0.10, 'square', 0.11, 1000);
+  const sfxCoin  = () => beep(880, 0.08, 'square', 0.10, 1200);
+  const sfxHit   = () => beep(140, 0.30, 'sawtooth', 0.18, 60);
+  const sfxEvolve= () => { beep(660,0.10,'triangle',0.16,880); setTimeout(()=>beep(990,0.16,'triangle',0.16,1320),100); };
+
+  function unlockAudio(){
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    ac();
+    if (!muted){ bgm.volume = 0.45; bgm.play().catch(()=>{}); }
+  }
+
+  document.getElementById('muteBtn').addEventListener('click', ()=>{
+    muted = !muted;
+    document.getElementById('muteBtn').textContent = muted ? '🔈' : '🔊';
+    if (muted) bgm.pause(); else if (audioUnlocked) bgm.play().catch(()=>{});
+  });
+
+  // ---- Growth stages ----
+  const STAGES = [
+    { emoji:'🥚', size:26, name:'タマゴ(小)' },
+    { emoji:'🥚', size:36, name:'タマゴ(大)' },
+    { emoji:'🐣', size:34, name:'ひな' },
+    { emoji:'🐥', size:42, name:'こども鳥' },
+    { emoji:'🦅', size:58, name:'巨大な鳥' },
+  ];
+  const THRESH = [0, 10, 24, 44, 70]; // 累計コインで進化
+
+  // ---- Game state ----
+  let running = false, paused = false, over = false;
+  let distance = 0, coins = 0, stage = 0;
+  function loadBest(){ try{ return Number(localStorage.getItem('korotama_best') || 0) || 0; }catch(e){ return 0; } }
+  function saveBest(v){ try{ localStorage.setItem('korotama_best', v); }catch(e){} }
+  let best = loadBest();
+  document.getElementById('valBest').textContent = best + 'm';
+
+  const PLAYER_X = 90;
+  let player = { x: PLAYER_X, y: BASE_GROUND_Y, vy: 0, onGround: true, invuln: 0, jumpsUsed: 0, lastGroundY: BASE_GROUND_Y, wasOverNothing: false };
+  let obstacles = []; // {worldX, w, h}(平坦バー上の岩、または段差の壁)
+  let coinList = [];  // {worldX, hOff, got}
+  let particles = [];
+  let worldScroll = 0;
+  let nextX = 380;      // 次の地形を生成するワールドX
+  let terrainY = BASE_GROUND_Y; // 現在生成中のバーの高さ
+  let baseSpeed = 150; // px/s
+  let shake = 0;
+  let lastT = 0;
+  let fallReason = null; // 'pit' | null
+
+  function reset(){
+    distance = 0; coins = 0; stage = 0;
+    worldScroll = 0; nextX = 380; terrainY = BASE_GROUND_Y;
+    obstacles = []; coinList = []; particles = []; pitZones = [];
+    platforms = [{ start: -99999, end: 380, y: BASE_GROUND_Y }];
+    fallReason = null;
+    player = { x: PLAYER_X, y: BASE_GROUND_Y, vy: 0, onGround: true, invuln: 0, jumpsUsed: 0, lastGroundY: BASE_GROUND_Y, wasOverNothing: false };
+    over = false;
+  }
+
+  function speedNow(){
+    const t1 = Math.min(distance / RAMP_DIST, 1);
+    const t2 = Math.min(Math.max(distance - RAMP_DIST, 0) / (RAMP2_DIST - RAMP_DIST), 1);
+    const t3 = 1 - Math.exp(-Math.max(distance - RAMP2_DIST, 0) / RAMP3_SCALE);
+    // 500mで基本難易度が最大に、500〜1500mでさらに上乗せ、1500m以降もなめらかに(漸近的に)上がり続け、頭打ちしない
+    return baseSpeed + t1*140 + t2*70 + t3*100;
+  }
+
+  function stageInfo(){ return STAGES[stage]; }
+
+  function tryEvolve(){
+    let ns = stage;
+    while (ns < THRESH.length - 1 && coins >= THRESH[ns+1]) ns++;
+    if (ns !== stage){
+      stage = ns;
+      sfxEvolve();
+      shake = 6;
+      player.invuln = Math.max(player.invuln, 0.8);
+      for (let i=0;i<14;i++) particles.push(mkParticle(player.x, player.y-20, '✨'));
+    }
+  }
+
+  function mkParticle(x,y,glyph){
+    return { x, y, vx:(Math.random()-0.5)*80, vy:-60-Math.random()*60, life:0.6, glyph };
+  }
+
+  // ---- 地形(バー)・段差の壁・落下する穴・障害物・コインを、世界座標を進めながら先読み生成する ----
+  function maybeGenerateFeatures(s){
+    while (nextX < worldScroll + W + 250){
+      const progress = Math.min(nextX / (RAMP_DIST*10), 1);
+      // RAMP_DIST(500m)より先も、RAMP2_DIST(1500m)まではさらに出現率が上乗せされる
+      const progress2 = Math.min(Math.max(nextX - RAMP_DIST*10, 0) / ((RAMP2_DIST - RAMP_DIST)*10), 1);
+      // RAMP2_DIST(1500m)より先も、なめらかに(漸近的に)出現率が上がり続ける。頭打ちしない(専務指示: その先もまだまだ難易度を上げて)
+      const progress3 = 1 - Math.exp(-Math.max(nextX - RAMP2_DIST*10, 0) / (RAMP3_SCALE*10));
+      const r = Math.random();
+      const flatLen = 140 + Math.random()*160;
+      // 穴・段差(=障害)の合計出現率がdistanceとともに単調増加するようにする。
+      // (以前はif/else ifの各しきい値が同じrを分け合うだけで、合計確率が常に一定になってしまうバグがあった)
+      const pitChance = nextX > 500 ? (0.10 + progress*0.22 + progress2*0.08 + progress3*0.05) : 0; // 0.10 → 0.32 → 0.40 → 漸近的に0.45へ
+      const stepChance = nextX > 260 ? (0.18 + progress*0.22 + progress2*0.08 + progress3*0.05) : 0; // 0.18 → 0.40 → 0.48 → 漸近的に0.53へ
+
+      const canBeBig = nextX > BIG_GATE_X && Math.random() < BIG_VARIANT_CHANCE;
+
+      if (r < pitChance){
+        // 落下する穴(バーとバーの間に隙間。ジャンプで飛び越える)
+        const airTime = (2 * Math.abs(JUMP_VY)) / GRAVITY;
+        let gapW;
+        if (canBeBig){
+          // 大型の穴:単発ジャンプの理論上の最大到達距離(s*airTime)を必ず超えるよう、上限を固定値でクランプせず
+          // 速度sに比例させたままにする(速度が上がるほど単発ジャンプの到達距離自体も伸びるため、固定の上限だと
+          // 高速域で単発ジャンプでも届いてしまう恐れがある)。下限のみ、低速域で幅が小さくなり過ぎないように設ける。
+          gapW = Math.max(110, s * airTime * 1.3);
+        } else {
+          const maxSafeWidth = s * airTime * 0.55;
+          gapW = Math.max(50, Math.min(100, maxSafeWidth));
+        }
+        pitZones.push({ start: nextX, end: nextX + gapW, y: terrainY });
+        platforms.push({ start: nextX + gapW, end: nextX + gapW + flatLen, y: terrainY });
+        nextX = nextX + gapW + flatLen;
+      } else if (r < pitChance + stepChance){
+        // バーの段差(上り or 下り)
+        // 大型化するのは、現在の高さから上に十分な余地(50px超=単発ジャンプの最大上昇を超える分)がある時だけ。
+        // 余地が無いのにBIG_OBSTACLE_Hをそのまま使うと、BAR_Y_MINでクランプされて意図した高さより低くなり、
+        // 「2段ジャンプ必須」のはずが単発ジャンプで越えられてしまう恐れがあるため。
+        const availableUp = terrainY - BAR_Y_MIN;
+        const useBig = canBeBig && availableUp > 50;
+        const stepUp = useBig ? true : Math.random() < 0.5;
+        const stepH = useBig ? Math.min(BIG_OBSTACLE_H, availableUp) : (22 + Math.random()*16); // 通常は単発ジャンプの最大上昇(50px)より十分低く、大型版は2段ジャンプ必須の高さに
+        let newY = terrainY + (stepUp ? -stepH : stepH);
+        newY = Math.max(BAR_Y_MIN, Math.min(BAR_Y_MAX, newY));
+        if (newY < terrainY){
+          // 上りバー:壁(段差の側面)を障害物として設置。飛び上がって越える必要がある。
+          obstacles.push({ worldX: nextX - 1, w: 18, h: terrainY - newY });
+        }
+        terrainY = newY;
+        platforms.push({ start: nextX, end: nextX + flatLen, y: terrainY });
+        if (Math.random() < 0.5){
+          const n = 1 + Math.floor(Math.random()*3);
+          for (let i=0;i<n;i++){
+            coinList.push({ worldX: nextX + flatLen*0.35 + i*24, hOff: 30 + Math.random()*20, got:false });
+          }
+        }
+        nextX += flatLen;
+      } else {
+        // 平坦なバーの継続(通常の岩+コイン。大型版は単発ジャンプの最大上昇(50px)を超える大岩)
+        platforms.push({ start: nextX, end: nextX + flatLen, y: terrainY });
+        if (canBeBig){
+          obstacles.push({ worldX: nextX + flatLen*0.5, w:30, h: BIG_OBSTACLE_H });
+        } else if (Math.random() < 0.5){
+          obstacles.push({ worldX: nextX + flatLen*0.5, w:26, h:30 });
+        }
+        if (Math.random() < 0.7){
+          const n = 2 + Math.floor(Math.random()*3);
+          const hOff = 40 + Math.random()*40;
+          for (let i=0;i<n;i++){
+            coinList.push({ worldX: nextX + 40 + i*26, hOff, got:false });
+          }
+        }
+        nextX += flatLen;
+      }
+    }
+  }
+
+  function jump(){
+    if (!running || paused || over) return;
+    unlockAudio();
+    if (player.onGround){
+      player.vy = JUMP_VY;
+      player.onGround = false;
+      player.jumpsUsed = 1;
+      sfxJump();
+    } else if (player.jumpsUsed < MAX_JUMPS){
+      player.vy = JUMP_VY;
+      player.jumpsUsed++;
+      sfxDoubleJump();
+      for (let i=0;i<6;i++) particles.push(mkParticle(player.x, player.y, '💨'));
+    }
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    if (e.code === 'Space'){ e.preventDefault(); jump(); }
+  });
+  document.getElementById('stage').addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    if (!running){ return; }
+    jump();
+  });
+
+  // ---- Gamepad(コントローラー)対応 ----
+  // ボタンは何を押してもジャンプ/決定として扱う(操作を1つに保つ設計方針に合わせる)。
+  // 画面の状態(開始前/一時停止中/終了後)に応じて対応するボタンを自動でクリックする。
+  function primaryAction(){
+    if (!document.getElementById('startOverlay').hidden){ document.getElementById('startBtn').click(); return; }
+    if (!document.getElementById('pauseOverlay').hidden){ document.getElementById('resumeBtn').click(); return; }
+    if (!document.getElementById('endOverlay').hidden){ document.getElementById('retryBtn').click(); return; }
+    jump();
+  }
+  const PAUSE_BUTTON_INDEX = 9; // 標準マッピングの Start/Menu ボタン(未対応コントローラーもあるため任意)
+  let gpPrevPressed = {};
+  function pollGamepads(){
+    if (!navigator.getGamepads) return;
+    const pads = navigator.getGamepads();
+    for (const gp of pads){
+      if (!gp) continue;
+      const prev = gpPrevPressed[gp.index] || new Set();
+      const curr = new Set();
+      gp.buttons.forEach((b, i) => { if (b.pressed || b.value > 0.5) curr.add(i); });
+      for (const i of curr){
+        if (prev.has(i)) continue; // 押しっぱなしで連発しないよう、押した瞬間だけ反応させる
+        if (i === PAUSE_BUTTON_INDEX && document.getElementById('startOverlay').hidden && document.getElementById('endOverlay').hidden){
+          document.getElementById('pauseBtn').click();
+        } else {
+          primaryAction();
+        }
+      }
+      gpPrevPressed[gp.index] = curr;
+    }
+  }
+
+  function endRun(){
+    over = true; running = false;
+    if (distance > best){ best = Math.floor(distance); saveBest(best); }
+    document.getElementById('valBest').textContent = best + 'm';
+    document.getElementById('endDist').textContent = Math.floor(distance);
+    document.getElementById('endCoin').textContent = coins;
+    document.getElementById('endTitle').textContent =
+      fallReason === 'pit' ? '穴に落ちた…' : 'ゲームオーバー';
+    document.getElementById('endRank').textContent = stageInfo().emoji;
+    document.getElementById('endStageName').textContent = '姿: ' + stageInfo().name;
+    document.getElementById('endOverlay').hidden = false;
+    sfxHit();
+  }
+
+  function update(dt){
+    if (!running || paused || over) return;
+
+    const s = speedNow();
+    worldScroll += s * dt;
+    distance = worldScroll / 10;
+
+    maybeGenerateFeatures(s);
+    platforms = platforms.filter(p => (p.end - worldScroll) > -80);
+    pitZones = pitZones.filter(p => (p.end - worldScroll) > -80);
+
+    // ---- player physics(バーの上を走り、段差は飛んで越え、穴の上では落下する) ----
+    const curWorldX = worldScroll + player.x;
+    const rawGround = platformAt(curWorldX);
+    const groundHere = rawGround ? rawGround.y : null;
+
+    // 「足元に地面が全く無い(穴の真上)」状態から「地面がある」状態へ切り替わった、まさにその瞬間だけを検出する。
+    // この瞬間にすでに沈み込みすぎていたら、穴を飛び越えられず側面(崖)に激突したとみなす。
+    // (段差の下りや、穴を跨いだ後に着地せずさらに先の段差へ着地するケースは、この「地面なし→地面あり」の切り替わり瞬間そのものではないため対象にならない)
+    const emergedFromGap = player.wasOverNothing && groundHere !== null;
+    if (emergedFromGap && player.invuln <= 0 && player.y - groundHere > LANDING_OVERSHOOT_LIMIT){
+      fallReason = 'pit';
+      endRun();
+      return;
+    }
+    player.wasOverNothing = (groundHere === null);
+
+    if (player.onGround){
+      if (groundHere === null || groundHere > player.y + 1){
+        player.onGround = false; // 足元が途切れた(穴)、または一段下がる場所:自然落下に切り替える
+      } else {
+        player.y = groundHere;
+        player.lastGroundY = groundHere;
+      }
+    }
+    if (!player.onGround){
+      player.vy += GRAVITY * dt;
+      player.y += player.vy * dt;
+      if (groundHere !== null && player.vy >= 0 && player.y >= groundHere){
+        player.y = groundHere; player.vy = 0; player.onGround = true; player.jumpsUsed = 0;
+        player.lastGroundY = groundHere;
+      }
+    }
+    if (player.invuln > 0) player.invuln -= dt;
+
+    if (rawGround === null && !player.onGround && player.invuln <= 0 && player.y > player.lastGroundY + 90){
+      fallReason = 'pit';
+      endRun();
+      return;
+    }
+
+    const sz = stageInfo().size;
+    const hb = { x: player.x - sz*0.32, y: player.y - sz*0.8, w: sz*0.64, h: sz*0.8 };
+
+    // obstacles(平坦バー上の岩、または段差の壁)
+    obstacles = obstacles.filter(o => (o.worldX - worldScroll) > -60);
+    for (const o of obstacles){
+      const gLvl = groundLevel(o.worldX);
+      if (gLvl === null) continue;
+      const screenX = o.worldX - worldScroll;
+      const ox = screenX - o.w/2, oy = gLvl - o.h;
+      const overlap = hb.x < ox+o.w && hb.x+hb.w > ox && hb.y < gLvl && hb.y+hb.h > oy;
+      if (overlap && player.invuln <= 0){
+        endRun(); return;
+      }
+    }
+
+    // coins
+    coinList = coinList.filter(c => (c.worldX - worldScroll) > -30);
+    for (const c of coinList){
+      if (c.got) continue;
+      const gLvl = groundLevel(c.worldX);
+      if (gLvl === null) continue;
+      const screenX = c.worldX - worldScroll;
+      const cy = gLvl - c.hOff;
+      const dx = screenX - player.x, dy = cy - (player.y - sz*0.5);
+      if (Math.abs(dx) < sz*0.6 && Math.abs(dy) < sz*0.6){
+        c.got = true; coins++; sfxCoin();
+        document.getElementById('valCoin').textContent = coins;
+        tryEvolve();
+      }
+    }
+
+    // particles
+    for (const p of particles){ p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 200*dt; p.life -= dt; }
+    particles = particles.filter(p => p.life > 0);
+
+    if (shake > 0) shake -= dt*20;
+
+    document.getElementById('valDist').textContent = Math.floor(distance) + 'm';
+    document.getElementById('valStage').textContent = stageInfo().name;
+    document.getElementById('stageLabelRight').textContent = stageInfo().name;
+    const nextThresh = THRESH[Math.min(stage+1, THRESH.length-1)];
+    const prevThresh = THRESH[stage];
+    const pct = stage >= THRESH.length-1 ? 100 : Math.min(100, ((coins-prevThresh)/(nextThresh-prevThresh))*100);
+    document.getElementById('stageBarInner').style.width = pct + '%';
+  }
+
+  function drawSky(){
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#8fd8f5'); g.addColorStop(1,'#cdeffb');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    ctx.font = '20px sans-serif';
+    const t = performance.now()/1000;
+    for (let i=0;i<4;i++){
+      const cx = ((i*160 - (t*15)%160) + W) % (W+80) - 40;
+      ctx.globalAlpha = 0.8;
+      ctx.fillText('☁️', cx, 40 + (i%2)*20);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawGround(){
+    // 穴の中身(奥の暗い崖)を先に描く
+    ctx.fillStyle = '#20222c';
+    for (const p of pitZones){
+      const x0 = p.start - worldScroll, x1 = p.end - worldScroll;
+      if (x1 < 0 || x0 > W) continue;
+      const left = Math.max(x0, 0), right = Math.min(x1, W);
+      const topY = p.y - 6; // 隣接するバーの高さギリギリまで(上まで伸びすぎないように)
+      ctx.fillRect(left, topY, right - left, H - topY);
+    }
+
+    // バー(段差のある地面)を1本ずつ矩形で描く。段差の側面はそのまま崖として見える。
+    ctx.fillStyle = '#6fbf6f';
+    for (const p of platforms){
+      const x0 = Math.max(p.start - worldScroll, 0), x1 = Math.min(p.end - worldScroll, W);
+      if (x1 <= x0) continue;
+      ctx.fillRect(x0, p.y, x1 - x0, H - p.y);
+    }
+  }
+
+  function draw(){
+    ctx.save();
+    if (shake > 0){ ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake); }
+    drawSky();
+    drawGround();
+
+    // coins
+    ctx.font = '22px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    for (const c of coinList){
+      if (c.got) continue;
+      const gLvl = groundLevel(c.worldX);
+      if (gLvl === null) continue;
+      const screenX = c.worldX - worldScroll;
+      if (screenX < -20 || screenX > W+20) continue;
+      ctx.fillText('🪙', screenX, gLvl - c.hOff);
+    }
+
+    // obstacles
+    for (const o of obstacles){
+      const gLvl = groundLevel(o.worldX);
+      if (gLvl === null) continue;
+      const screenX = o.worldX - worldScroll;
+      if (screenX < -30 || screenX > W+30) continue;
+      ctx.font = (o.h+10)+'px sans-serif';
+      ctx.fillText('🪨', screenX, gLvl - o.h/2 + 4);
+    }
+
+    // particles
+    ctx.font = '16px sans-serif';
+    for (const p of particles){ ctx.globalAlpha = Math.max(p.life,0); ctx.fillText(p.glyph, p.x, p.y); }
+    ctx.globalAlpha = 1;
+
+    // player
+    const sz = stageInfo().size;
+    ctx.font = sz+'px sans-serif';
+    const bob = player.onGround ? Math.sin(performance.now()/90)*2 : 0;
+    const blink = player.invuln > 0 && Math.floor(performance.now()/80)%2===0;
+    ctx.globalAlpha = blink ? 0.4 : 1;
+    if (stage === 4){
+      // 巨大な鳥(最終形態)だけ、進行方向(右向き)に合わせて絵文字を左右反転させる
+      ctx.save();
+      ctx.translate(player.x, 0);
+      ctx.scale(-1, 1);
+      ctx.fillText(stageInfo().emoji, 0, player.y - sz*0.42 + bob);
+      ctx.restore();
+    } else {
+      ctx.fillText(stageInfo().emoji, player.x, player.y - sz*0.42 + bob);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+  }
+
+  function loop(t){
+    if (!lastT) lastT = t;
+    const dt = Math.min((t - lastT)/1000, 0.05);
+    lastT = t;
+    pollGamepads();
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---- UI wiring ----
+  document.getElementById('startBtn').addEventListener('click', ()=>{
+    unlockAudio();
+    document.getElementById('startOverlay').hidden = true;
+    reset();
+    document.getElementById('valCoin').textContent = 0;
+    running = true;
+  });
+
+  document.getElementById('pauseBtn').addEventListener('click', ()=>{
+    if (!running || over) return;
+    paused = !paused;
+    document.getElementById('pauseOverlay').hidden = !paused;
+  });
+  document.getElementById('resumeBtn').addEventListener('click', ()=>{
+    paused = false;
+    document.getElementById('pauseOverlay').hidden = true;
+  });
+
+  document.getElementById('retryBtn').addEventListener('click', ()=>{
+    document.getElementById('endOverlay').hidden = true;
+    reset();
+    document.getElementById('valCoin').textContent = 0;
+    running = true;
+  });
+})();
+</script>
+</body>
+</html>
