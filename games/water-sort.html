@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>ウォーターミックス</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<style>
+  :root{
+    --bg:#0a0e1a;
+    --cabinet:#171c2c;
+    --cabinet-edge:#262e48;
+    --screen:#0d1220;
+    --ink:#eaf0ff;
+    --ink-dim:#8791ad;
+    --cyan:#43e5ff;
+    --magenta:#ff4d94;
+    --amber:#ffcf4d;
+    --green:#6dffb0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:radial-gradient(120% 140% at 50% 0%, #131a2c 0%, var(--bg) 60%);
+    color:var(--ink);
+    font-family:"Zen Maru Gothic", sans-serif;
+    display:flex;
+    justify-content:center;
+    min-height:100vh;
+    min-height:100dvh;
+    padding-block:10px 24px;
+  }
+  .page{
+    width:100%;
+    max-width:520px;
+    padding-inline:16px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+    position:relative;
+    z-index:1;
+  }
+  .side-art{
+    position:fixed;
+    top:0;
+    bottom:0;
+    width:calc((100vw - 520px) / 2);
+    overflow:hidden;
+    z-index:0;
+    pointer-events:none;
+    opacity:0.5;
+    display:none;
+  }
+  .side-art img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+  .side-art.left{ left:0; }
+  .side-art.left img{ object-position:left center; }
+  .side-art.right{ right:0; }
+  .side-art.right img{ object-position:right center; }
+  .side-art::after{
+    content:'';
+    position:absolute;
+    top:0; bottom:0;
+    width:140px;
+  }
+  .side-art.left::after{ right:0; background:linear-gradient(to right, transparent, var(--bg)); }
+  .side-art.right::after{ left:0; background:linear-gradient(to left, transparent, var(--bg)); }
+  @media (min-width:900px){
+    .side-art{ display:block; }
+  }
+  .side-art.title-active{ display:none; }
+  h1{
+    font-family:"DotGothic16", monospace;
+    font-size:clamp(18px,5vw,26px);
+    letter-spacing:0.06em;
+    color:var(--cyan);
+    text-shadow:0 0 12px rgba(67,229,255,0.55);
+    margin:6px 0 0;
+    text-align:center;
+  }
+  .tagline{
+    font-size:11px;
+    color:var(--ink-dim);
+    text-align:center;
+    margin-bottom:4px;
+  }
+  .cabinet{
+    width:100%;
+    background:linear-gradient(180deg,var(--cabinet-edge),var(--cabinet) 12%, var(--cabinet) 92%, var(--cabinet-edge));
+    border-radius:18px;
+    padding:14px;
+    box-shadow:0 18px 40px -18px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.04);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .title-screen{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:16px;
+    padding-block:8px;
+  }
+  .title-image{
+    width:100%;
+    border-radius:16px;
+    box-shadow:0 18px 40px -18px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.06);
+    cursor:pointer;
+  }
+  .title-start-btn{
+    font-size:16px;
+    padding:12px 32px;
+    letter-spacing:0.05em;
+  }
+  .hud{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12px;
+    color:var(--ink-dim);
+  }
+  .hud b{ color:var(--amber); }
+  .screen{
+    background:var(--screen);
+    border-radius:12px;
+    padding:16px 8px;
+    min-height:260px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    position:relative;
+  }
+  .bottles{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:10px;
+    padding:4px;
+  }
+  .bottle{
+    position:relative;
+    width:48px;
+    height:172px;
+    cursor:pointer;
+    transition:transform .12s, filter .12s;
+  }
+  .bottle.cursor{
+    filter:drop-shadow(0 0 3px var(--cyan)) drop-shadow(0 0 6px rgba(67,229,255,0.5));
+  }
+  .bottle.selected{
+    transform:translateY(-8px);
+    filter:drop-shadow(0 0 4px var(--amber)) drop-shadow(0 0 8px rgba(255,207,77,0.55));
+  }
+  .bottle.locked{
+    opacity:0.7;
+  }
+  .liquid-mask{
+    position:absolute;
+    left:5px;
+    right:5px;
+    top:8px;
+    bottom:4px;
+    border-bottom-left-radius:13px;
+    border-bottom-right-radius:13px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column-reverse;
+    gap:2px;
+  }
+  .tube-img{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:fill;
+    pointer-events:none;
+  }
+  .segment{
+    flex:1 1 0;
+    border-radius:3px;
+  }
+  .segment.empty{
+    background:transparent !important;
+  }
+  .badge{
+    position:absolute;
+    top:-10px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:14px;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,0.6));
+  }
+  .locklabel{
+    position:absolute;
+    bottom:-16px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:9px;
+    color:var(--magenta);
+    white-space:nowrap;
+  }
+  .message{
+    font-size:12px;
+    color:var(--ink);
+    min-height:16px;
+    text-align:center;
+    padding:0 8px;
+  }
+  .skillbar{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+  button{
+    font-family:"Zen Maru Gothic", sans-serif;
+    font-size:12px;
+    color:var(--ink);
+    background:linear-gradient(180deg,#2a3355,#1c2340);
+    border:1px solid #3a4468;
+    border-radius:10px;
+    padding:8px 12px;
+    cursor:pointer;
+  }
+  button:disabled{
+    opacity:0.4;
+    cursor:default;
+  }
+  button.primary{
+    background:linear-gradient(180deg,#2ec4a6,#1c8f7c);
+    border-color:#2ec4a6;
+    color:#04231d;
+    font-weight:700;
+  }
+  .controls-row{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .stage-select{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+    gap:8px;
+    width:100%;
+  }
+  .stage-btn{
+    text-align:left;
+    padding:10px;
+    line-height:1.5;
+  }
+  .stage-btn small{ display:block; color:var(--ink-dim); font-size:10px; }
+  .stage-btn.cursor{
+    border-color:var(--cyan);
+    box-shadow:0 0 0 2px rgba(67,229,255,0.35);
+  }
+  .legend{
+    font-size:10px;
+    color:var(--ink-dim);
+    text-align:center;
+    line-height:1.6;
+  }
+  .gamepad-toast{
+    position:absolute;
+    top:8px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:10px;
+    color:var(--green);
+    background:rgba(0,0,0,0.5);
+    padding:3px 8px;
+    border-radius:8px;
+    opacity:0;
+    transition:opacity .3s;
+    pointer-events:none;
+  }
+  .clear-overlay{
+    position:absolute;
+    inset:0;
+    background:rgba(6,9,17,0.92);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    border-radius:12px;
+  }
+  .clear-overlay h2{
+    color:var(--green);
+    font-family:"DotGothic16", monospace;
+    margin:0;
+  }
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="side-art left title-active" aria-hidden="true"><img src="water-mix-title-screen.png" alt="" /></div>
+<div class="side-art right title-active" aria-hidden="true"><img src="water-mix-title-screen.png" alt="" /></div>
+<div class="page">
+  <div id="titleView" class="title-screen">
+    <img src="water-mix-title-screen.png" alt="ウォーターミックス" class="title-image" id="titleImage" />
+    <button id="startBtn" class="primary title-start-btn">はじめる</button>
+    <div class="legend">タップ/クリック、Enter、または🎮Aボタンではじめる</div>
+    <div class="legend" style="opacity:0.7; margin-top:2px;">
+      音楽: "Chiptune One" by CarlosCarty (freesound.org), CC BY 4.0<br>
+      効果音: "Notification Sound 1" by deadrobotmusic (freesound.org), CC0<br>
+      "Achievement Happy Beeps Jingle" by CogFireStudios (freesound.org), CC0<br>
+      ボイス: "Great" by studentsimf (freesound.org), CC0
+    </div>
+  </div>
+
+  <div id="mainView" hidden style="width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;">
+  <h1>ウォーターミックス</h1>
+  <div class="tagline">色をそろえてボトルをクリアしよう(プロトタイプ版)</div>
+
+  <div class="cabinet">
+    <div id="stageSelectView" class="screen" style="flex-direction:column;">
+      <div class="stage-select" id="stageSelectGrid"></div>
+      <div class="legend">🎮 十字キー/スティックで選択 Aボタンで決定・タップ/クリックでも選択可</div>
+    </div>
+
+    <div id="gameView" hidden style="display:flex;flex-direction:column;gap:12px;">
+      <div class="hud">
+        <span id="stageLabel">ステージ 1</span>
+        <button id="soundToggleBtn" style="padding:4px 8px;font-size:14px;">🔊</button>
+        <span>手数: <b id="moveCount">0</b></span>
+      </div>
+      <div class="screen">
+        <div class="gamepad-toast" id="gamepadToast"></div>
+        <div class="bottles" id="bottles"></div>
+        <div class="message" id="message"></div>
+        <div id="clearOverlay" class="clear-overlay" hidden>
+          <h2>ステージクリア!</h2>
+          <div style="display:flex; gap:8px;">
+            <button id="nextStageBtn" class="primary">次のステージへ</button>
+            <button id="backToSelectBtn">ステージ選択</button>
+          </div>
+        </div>
+      </div>
+      <div class="skillbar">
+        <button id="undoBtn">💧 1滴戻す (<span id="undoCount">3</span>)</button>
+        <button id="shuffleBtn">🌀 シャッフル (<span id="shuffleCount">2</span>)</button>
+      </div>
+      <div class="controls-row">
+        <button id="retryBtn">🔄 やり直す</button>
+        <button id="quitBtn">← ステージ選択</button>
+      </div>
+      <div class="legend">
+        タップ/クリックで選択→移動先を選択 ・ 矢印キー+Enterで操作 ・ 1=1滴戻す 2=シャッフル<br>
+        🎮 ゲームパッド: 十字キー/スティックで移動 A確定 Bキャンセル X=1滴戻す Y=シャッフル
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const CAPACITY = 4;
+  // dataviz手法(OKLab距離)で選定した10色。通常視力での最悪ペア判別度(ΔE)15.7・コントラスト全色3:1以上はクリア。
+  // 色覚多様性(CVD)判別度は最悪ΔE5.8で目安6〜8にわずかに届かず未達(10色同時に全ペアでCVD基準までクリアするのはdatavizスキルの知見上ほぼ不可能な水準)。
+  const PALETTE = ['#f53a64','#996215','#969c18','#208147','#15a8ab','#0a6ea7','#6c8df2','#6f44d8','#c35fcd','#a83671'];
+  const LOCK_DURATION = 5;
+  const SKILL_DEFAULTS = { undo: 3, shuffle: 2 };
+
+  const STAGES = [
+    { numColors:6, special:null,   title:'ステージ1: きほん',           note:'まずは基本ルールの確認' },
+    { numColors:6, special:'wild', title:'ステージ2: ワイルドボトル',   note:'虹色のボトルはどの色でも受け入れる' },
+    { numColors:7, special:'lock', title:'ステージ3: ロックボトル',     note:'鍵のボトルは色を注ぐと5手動かせない' },
+    { numColors:7, special:'wild', title:'ステージ4: そうしあげ',       note:'スキルもうまく使おう' },
+    { numColors:8, special:'lock', title:'ステージ5: ちょうせん',       note:'色が増えて難易度アップ' },
+    { numColors:8, special:'wild', title:'ステージ6: ワイルド2',        note:'ワイルドボトルをもう一度使いこなそう' },
+    { numColors:8, special:'lock', title:'ステージ7: ロック2',          note:'ロックボトルをもう一度使いこなそう' },
+    { numColors:9, special:'wild', title:'ステージ8: おおづめ',         note:'色がさらに増える' },
+    { numColors:9, special:'lock', title:'ステージ9: きわみ',           note:'ここからが本当の勝負' },
+    { numColors:10, special:'lock', title:'ステージ10: さいしゅうちょうせん', note:'全要素を使って挑もう' },
+  ];
+
+  const STORAGE_KEY = 'waterSortProgress';
+  const SOUND_KEY = 'waterSortSoundEnabled';
+
+  // 効果音・BGMの出典は 効果音/water-sort-freesound/LICENSE.md を参照
+  // BGM: "Chiptune One" by CarlosCarty (freesound.org), CC BY 4.0(対外公開時はクレジット表記必須)
+  const bgm = new Audio('効果音/water-sort-freesound/bgm.mp3');
+  bgm.loop = true;
+  bgm.volume = 0.5;
+  const pourSfx = new Audio('効果音/water-sort-freesound/pour.mp3');
+  pourSfx.volume = 0.55;
+  const bottleCompleteSfx = new Audio('効果音/water-sort-freesound/bottle-complete.mp3');
+  bottleCompleteSfx.volume = 0.6;
+  const greatVoice = new Audio('効果音/water-sort-freesound/great-voice.mp3');
+  greatVoice.volume = 0.8;
+
+  let soundEnabled = true;
+  try{
+    const saved = localStorage.getItem(SOUND_KEY);
+    if(saved !== null) soundEnabled = saved === '1';
+  }catch(e){}
+
+  function playSfx(audio){
+    if(!soundEnabled) return;
+    try{
+      const instance = audio.cloneNode();
+      instance.volume = audio.volume;
+      instance.play().catch(()=>{});
+    }catch(e){}
+  }
+
+  function applySoundState(){
+    bgm.muted = !soundEnabled;
+    const btn = document.getElementById('soundToggleBtn');
+    if(btn) btn.textContent = soundEnabled ? '🔊' : '🔇';
+  }
+
+  const el = {
+    titleView: document.getElementById('titleView'),
+    mainView: document.getElementById('mainView'),
+    stageSelectView: document.getElementById('stageSelectView'),
+    stageSelectGrid: document.getElementById('stageSelectGrid'),
+    gameView: document.getElementById('gameView'),
+    stageLabel: document.getElementById('stageLabel'),
+    moveCount: document.getElementById('moveCount'),
+    bottles: document.getElementById('bottles'),
+    message: document.getElementById('message'),
+    clearOverlay: document.getElementById('clearOverlay'),
+    nextStageBtn: document.getElementById('nextStageBtn'),
+    backToSelectBtn: document.getElementById('backToSelectBtn'),
+    undoBtn: document.getElementById('undoBtn'),
+    shuffleBtn: document.getElementById('shuffleBtn'),
+    undoCount: document.getElementById('undoCount'),
+    shuffleCount: document.getElementById('shuffleCount'),
+    retryBtn: document.getElementById('retryBtn'),
+    quitBtn: document.getElementById('quitBtn'),
+    gamepadToast: document.getElementById('gamepadToast'),
+  };
+
+  let state = null;
+
+  function loadProgress(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : { cleared: -1 };
+    }catch(e){ return { cleared: -1 }; }
+  }
+  function saveProgress(p){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); }catch(e){}
+  }
+
+  function shuffleArray(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  function isSolved(bottles){
+    return bottles.every(b => b.colors.length===0 || isBottleComplete(b));
+  }
+
+  function isBottleComplete(bottle){
+    return bottle.colors.length===CAPACITY && new Set(bottle.colors).size===1;
+  }
+
+  function checkCelebrations(playSound){
+    state.bottles.forEach(b => {
+      const complete = isBottleComplete(b);
+      if(complete && !b.celebrated){
+        b.celebrated = true;
+        if(playSound){
+          playSfx(bottleCompleteSfx);
+          playSfx(greatVoice);
+        }
+      }else if(!complete){
+        b.celebrated = false;
+      }
+    });
+  }
+
+  function generateStage(stageDef){
+    let bottles;
+    let tries = 0;
+    do{
+      const units = [];
+      for(let c=0;c<stageDef.numColors;c++){
+        for(let i=0;i<CAPACITY;i++) units.push(PALETTE[c]);
+      }
+      shuffleArray(units);
+      bottles = [];
+      for(let c=0;c<stageDef.numColors;c++){
+        bottles.push({ colors: units.splice(0,CAPACITY), type:'normal', lockedUntil:0, celebrated:false });
+      }
+      bottles.push({ colors: [], type: stageDef.special==='wild' ? 'wild' : 'normal', lockedUntil:0, celebrated:false });
+      bottles.push({ colors: [], type: stageDef.special==='lock' ? 'lock' : 'normal', lockedUntil:0, celebrated:false });
+      tries++;
+    }while(isSolved(bottles) && tries < 20);
+    return bottles;
+  }
+
+  function newGameState(stageIndex){
+    const stageDef = STAGES[stageIndex];
+    return {
+      stageIndex,
+      bottles: generateStage(stageDef),
+      cursor: 0,
+      pouringSource: null,
+      moves: 0,
+      history: [],
+      skills: { undo: SKILL_DEFAULTS.undo, shuffle: SKILL_DEFAULTS.shuffle },
+      cleared: false,
+      message: stageDef.note,
+    };
+  }
+
+  function isLocked(bottle){
+    return bottle.type==='lock' && state.moves < bottle.lockedUntil;
+  }
+
+  function topColorCount(bottle){
+    if(bottle.colors.length===0) return { color:null, count:0 };
+    const color = bottle.colors[bottle.colors.length-1];
+    let count = 0;
+    for(let i=bottle.colors.length-1;i>=0;i--){
+      if(bottle.colors[i]===color) count++; else break;
+    }
+    return { color, count };
+  }
+
+  function canReceive(dst, color){
+    if(dst.colors.length===0) return true;
+    if(dst.type==='wild') return true;
+    return dst.colors[dst.colors.length-1] === color;
+  }
+
+  function attemptMove(srcIdx, dstIdx){
+    const src = state.bottles[srcIdx];
+    const dst = state.bottles[dstIdx];
+    if(isLocked(src) || isLocked(dst)){
+      state.message = 'ロック中のボトルは動かせません';
+      return;
+    }
+    const { color, count } = topColorCount(src);
+    if(count===0){
+      state.message = 'そのボトルは空です';
+      return;
+    }
+    if(!canReceive(dst, color)){
+      state.message = 'その色は注げません';
+      return;
+    }
+    const space = CAPACITY - dst.colors.length;
+    const pourAmount = Math.min(count, space);
+    if(pourAmount<=0){
+      state.message = '移動先がいっぱいです';
+      return;
+    }
+    const wasEmpty = dst.colors.length===0;
+    const prevLockedUntil = dst.lockedUntil;
+    for(let i=0;i<pourAmount;i++){
+      dst.colors.push(src.colors.pop());
+    }
+    let lockTriggered = false;
+    if(dst.type==='lock' && wasEmpty){
+      dst.lockedUntil = state.moves + LOCK_DURATION + 1;
+      lockTriggered = true;
+    }
+    state.history.push({ srcIdx, dstIdx, color, count: pourAmount, lockTriggered, prevLockedUntil });
+    state.moves++;
+    state.message = '';
+    playSfx(pourSfx);
+    checkCelebrations(true);
+    if(isSolved(state.bottles)){
+      state.cleared = true;
+      const progress = loadProgress();
+      if(state.stageIndex > progress.cleared){
+        progress.cleared = state.stageIndex;
+        saveProgress(progress);
+      }
+    }
+  }
+
+  function useUndo(){
+    if(state.cleared || state.skills.undo<=0 || state.history.length===0) return;
+    const last = state.history.pop();
+    const src = state.bottles[last.srcIdx];
+    const dst = state.bottles[last.dstIdx];
+    for(let i=0;i<last.count;i++){
+      src.colors.push(dst.colors.pop());
+    }
+    if(last.lockTriggered) dst.lockedUntil = last.prevLockedUntil;
+    state.moves--;
+    state.skills.undo--;
+    state.message = '1手戻しました';
+    checkCelebrations(false);
+    render();
+  }
+
+  function useShuffle(){
+    if(state.cleared || state.skills.shuffle<=0) return;
+    const eligible = state.bottles.map((b,i) => i).filter(i => !isLocked(state.bottles[i]) && !isBottleComplete(state.bottles[i]));
+    if(eligible.length < 2){
+      state.message = '混ぜられるボトルが足りません(完成・ロック中を除く)';
+      render();
+      return;
+    }
+    const idxs = [];
+    while(idxs.length<3 && eligible.length>0){
+      const r = Math.floor(Math.random()*eligible.length);
+      idxs.push(eligible.splice(r,1)[0]);
+    }
+    const pool = [];
+    idxs.forEach(i => {
+      pool.push(...state.bottles[i].colors);
+      state.bottles[i].colors = [];
+    });
+    shuffleArray(pool);
+    while(pool.length > 0){
+      const candidates = idxs.filter(i => state.bottles[i].colors.length < CAPACITY);
+      const pick = candidates[Math.floor(Math.random()*candidates.length)];
+      state.bottles[pick].colors.push(pool.pop());
+    }
+    state.skills.shuffle--;
+    state.pouringSource = null;
+    state.history = [];
+    state.message = '3本の中身をシャッフルしました';
+    checkCelebrations(true);
+    render();
+  }
+
+  function handleActivate(idx){
+    if(state.cleared) return;
+    const bottle = state.bottles[idx];
+    if(state.pouringSource===null){
+      if(isLocked(bottle)){
+        state.message = 'ロック中のボトルは選べません';
+      }else if(bottle.colors.length===0){
+        state.message = 'そのボトルは空です';
+      }else{
+        state.pouringSource = idx;
+        state.message = '';
+      }
+    }else if(state.pouringSource===idx){
+      state.pouringSource = null;
+    }else{
+      attemptMove(state.pouringSource, idx);
+      state.pouringSource = null;
+    }
+    render();
+  }
+
+  function moveCursor(delta){
+    const n = state.bottles.length;
+    state.cursor = (state.cursor + delta + n) % n;
+    render();
+  }
+
+  function render(){
+    el.stageLabel.textContent = STAGES[state.stageIndex].title;
+    el.moveCount.textContent = state.moves;
+    el.message.textContent = state.message;
+    el.undoCount.textContent = state.skills.undo;
+    el.shuffleCount.textContent = state.skills.shuffle;
+    el.undoBtn.disabled = state.skills.undo<=0 || state.history.length===0 || state.cleared;
+    el.shuffleBtn.disabled = state.skills.shuffle<=0 || state.cleared;
+
+    el.bottles.innerHTML = '';
+    state.bottles.forEach((bottle, idx) => {
+      const div = document.createElement('div');
+      div.className = 'bottle';
+      if(idx===state.cursor) div.classList.add('cursor');
+      if(idx===state.pouringSource) div.classList.add('selected');
+      if(isLocked(bottle)) div.classList.add('locked');
+      div.addEventListener('click', () => { state.cursor = idx; handleActivate(idx); });
+
+      const mask = document.createElement('div');
+      mask.className = 'liquid-mask';
+      for(let slot=0; slot<CAPACITY; slot++){
+        const color = bottle.colors[slot];
+        const seg = document.createElement('div');
+        seg.className = 'segment' + (color ? '' : ' empty');
+        if(color) seg.style.background = color;
+        mask.appendChild(seg);
+      }
+      div.appendChild(mask);
+
+      const tubeImg = document.createElement('img');
+      tubeImg.className = 'tube-img';
+      tubeImg.src = 'test-tube.png';
+      tubeImg.alt = '';
+      div.appendChild(tubeImg);
+
+      if(bottle.type==='wild'){
+        const badge = document.createElement('div');
+        badge.className = 'badge';
+        badge.textContent = '🌈';
+        div.appendChild(badge);
+      }else if(bottle.type==='lock'){
+        const badge = document.createElement('div');
+        badge.className = 'badge';
+        badge.textContent = '🔒';
+        div.appendChild(badge);
+        if(isLocked(bottle)){
+          const label = document.createElement('div');
+          label.className = 'locklabel';
+          label.textContent = 'のこり' + (bottle.lockedUntil - state.moves) + '手';
+          div.appendChild(label);
+        }
+      }
+      el.bottles.appendChild(div);
+    });
+
+    el.clearOverlay.hidden = !state.cleared;
+  }
+
+  function startStage(stageIndex){
+    state = newGameState(stageIndex);
+    checkCelebrations(false);
+    el.stageSelectView.hidden = true;
+    el.gameView.hidden = false;
+    if(bgm.paused) bgm.play().catch(()=>{});
+    render();
+  }
+
+  let stageSelectCursor = 0;
+
+  function stageSelectEnabledIndices(){
+    const progress = loadProgress();
+    const idxs = [];
+    STAGES.forEach((s,i) => { if(i <= progress.cleared + 1) idxs.push(i); });
+    return idxs;
+  }
+
+  function renderStageSelect(){
+    const progress = loadProgress();
+    const enabled = stageSelectEnabledIndices();
+    if(!enabled.includes(stageSelectCursor)) stageSelectCursor = enabled[0] ?? 0;
+    el.stageSelectGrid.innerHTML = '';
+    STAGES.forEach((s, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'stage-btn';
+      const unlocked = idx <= progress.cleared + 1;
+      btn.disabled = !unlocked;
+      if(idx === stageSelectCursor) btn.classList.add('cursor');
+      btn.innerHTML = s.title + '<small>' + (unlocked ? s.note : '前のステージをクリアすると解放') + '</small>';
+      btn.addEventListener('click', () => { stageSelectCursor = idx; startStage(idx); });
+      el.stageSelectGrid.appendChild(btn);
+    });
+  }
+
+  function moveStageSelectCursor(delta){
+    const enabled = stageSelectEnabledIndices();
+    if(enabled.length===0) return;
+    let pos = enabled.indexOf(stageSelectCursor);
+    if(pos === -1) pos = 0;
+    pos = (pos + delta + enabled.length) % enabled.length;
+    stageSelectCursor = enabled[pos];
+    renderStageSelect();
+  }
+
+  function activateStageSelectCursor(){
+    const enabled = stageSelectEnabledIndices();
+    if(enabled.includes(stageSelectCursor)) startStage(stageSelectCursor);
+  }
+
+  function backToSelect(){
+    el.gameView.hidden = true;
+    el.stageSelectView.hidden = false;
+    renderStageSelect();
+  }
+
+  function startGame(){
+    el.titleView.hidden = true;
+    el.mainView.hidden = false;
+    document.querySelectorAll('.side-art').forEach(elm => elm.classList.remove('title-active'));
+    renderStageSelect();
+  }
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('titleImage').addEventListener('click', startGame);
+
+  el.undoBtn.addEventListener('click', useUndo);
+  el.shuffleBtn.addEventListener('click', useShuffle);
+  document.getElementById('soundToggleBtn').addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    try{ localStorage.setItem(SOUND_KEY, soundEnabled ? '1' : '0'); }catch(e){}
+    applySoundState();
+  });
+  applySoundState();
+  el.retryBtn.addEventListener('click', () => startStage(state.stageIndex));
+  el.quitBtn.addEventListener('click', backToSelect);
+  el.nextStageBtn.addEventListener('click', () => {
+    const next = state.stageIndex + 1;
+    if(next < STAGES.length) startStage(next); else backToSelect();
+  });
+  el.backToSelectBtn.addEventListener('click', backToSelect);
+
+  window.addEventListener('keydown', (e) => {
+    if(!el.titleView.hidden){
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); startGame(); }
+      return;
+    }
+    if(el.gameView.hidden) return;
+    if(e.key==='ArrowLeft'){ moveCursor(-1); }
+    else if(e.key==='ArrowRight'){ moveCursor(1); }
+    else if(e.key==='ArrowUp'){ moveCursor(-1); }
+    else if(e.key==='ArrowDown'){ moveCursor(1); }
+    else if(e.key==='Enter' || e.key===' '){ e.preventDefault(); handleActivate(state.cursor); }
+    else if(e.key==='1'){ useUndo(); }
+    else if(e.key==='2'){ useShuffle(); }
+  });
+
+  // --- ゲームパッド対応(Gamepad API) ---
+  let gpPrevButtons = [];
+  let gpAxisNeutral = true;
+  window.addEventListener('gamepadconnected', () => {
+    el.gamepadToast.textContent = '🎮 コントローラー接続';
+    el.gamepadToast.style.opacity = '1';
+    setTimeout(() => { el.gamepadToast.style.opacity = '0'; }, 2000);
+  });
+  window.addEventListener('gamepaddisconnected', () => {
+    el.gamepadToast.textContent = '🎮 コントローラー切断';
+    el.gamepadToast.style.opacity = '1';
+    setTimeout(() => { el.gamepadToast.style.opacity = '0'; }, 2000);
+  });
+
+  function pollGamepad(){
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const gp = pads && pads[0];
+    if(gp){
+      const pressed = (i) => gp.buttons[i] && gp.buttons[i].pressed;
+      const wasPressed = (i) => gpPrevButtons[i];
+
+      if(!el.titleView.hidden){
+        if(pressed(0) && !wasPressed(0)) startGame();                           // A: タイトルからはじめる
+      }else if(!el.stageSelectView.hidden){
+        if(pressed(0) && !wasPressed(0)) activateStageSelectCursor();          // A: このステージを開始
+
+        const ssLeft = pressed(14), ssRight = pressed(15);
+        const ssUp = pressed(12), ssDown = pressed(13);
+        if(ssLeft && !wasPressed(14)) moveStageSelectCursor(-1);
+        if(ssRight && !wasPressed(15)) moveStageSelectCursor(1);
+        if(ssUp && !wasPressed(12)) moveStageSelectCursor(-1);
+        if(ssDown && !wasPressed(13)) moveStageSelectCursor(1);
+
+        const ssAxisX = gp.axes[0] || 0;
+        if(Math.abs(ssAxisX) < 0.3){
+          gpAxisNeutral = true;
+        }else if(gpAxisNeutral){
+          moveStageSelectCursor(ssAxisX < 0 ? -1 : 1);
+          gpAxisNeutral = false;
+        }
+      }else if(!el.gameView.hidden){
+        if(pressed(0) && !wasPressed(0)) handleActivate(state.cursor);           // A: 確定
+        if(pressed(1) && !wasPressed(1)){ state.pouringSource=null; render(); }  // B: キャンセル
+        if(pressed(2) && !wasPressed(2)) useUndo();                             // X: 1滴戻す
+        if(pressed(3) && !wasPressed(3)) useShuffle();                          // Y: シャッフル
+
+        const dpadLeft = pressed(14), dpadRight = pressed(15);
+        if(dpadLeft && !wasPressed(14)) moveCursor(-1);
+        if(dpadRight && !wasPressed(15)) moveCursor(1);
+
+        const axisX = gp.axes[0] || 0;
+        if(Math.abs(axisX) < 0.3){
+          gpAxisNeutral = true;
+        }else if(gpAxisNeutral){
+          moveCursor(axisX < 0 ? -1 : 1);
+          gpAxisNeutral = false;
+        }
+      }
+
+      gpPrevButtons = gp.buttons.map(b => b.pressed);
+    }
+    requestAnimationFrame(pollGamepad);
+  }
+  requestAnimationFrame(pollGamepad);
+
+  renderStageSelect();
+})();
+</script>
+</body>
+</html>
