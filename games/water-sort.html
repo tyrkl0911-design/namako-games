@@ -329,7 +329,10 @@
     <div id="gameView" hidden style="display:flex;flex-direction:column;gap:12px;">
       <div class="hud">
         <span id="stageLabel">ステージ 1</span>
-        <button id="soundToggleBtn" style="padding:4px 8px;font-size:14px;">🔊</button>
+        <div style="display:flex; gap:4px;">
+          <button id="soundToggleBtn" style="padding:4px 8px;font-size:14px;">🔊</button>
+          <button id="pauseBtn" style="padding:4px 8px;font-size:14px;">⏸</button>
+        </div>
         <span>手数: <b id="moveCount">0</b></span>
       </div>
       <div class="screen">
@@ -341,6 +344,13 @@
           <div style="display:flex; gap:8px;">
             <button id="nextStageBtn" class="primary">次のステージへ</button>
             <button id="backToSelectBtn">ステージ選択</button>
+          </div>
+        </div>
+        <div id="pauseOverlay" class="clear-overlay" hidden>
+          <h2>⏸ 一時停止中</h2>
+          <div style="display:flex; gap:8px;">
+            <button id="resumePauseBtn" class="primary">つづける</button>
+            <button id="pauseTitleBtn">タイトルへ戻る</button>
           </div>
         </div>
       </div>
@@ -439,6 +449,7 @@
     retryBtn: document.getElementById('retryBtn'),
     quitBtn: document.getElementById('quitBtn'),
     gamepadToast: document.getElementById('gamepadToast'),
+    pauseOverlay: document.getElementById('pauseOverlay'),
   };
 
   let state = null;
@@ -784,6 +795,32 @@
   document.getElementById('startBtn').addEventListener('click', startGame);
   document.getElementById('titleImage').addEventListener('click', startGame);
 
+  function openPause(){
+    if(el.gameView.hidden || !state || state.cleared) return;
+    el.pauseOverlay.hidden = false;
+    bgm.pause();
+  }
+  function closePause(){
+    el.pauseOverlay.hidden = true;
+    if(!bgm.paused) return;
+    bgm.play().catch(()=>{});
+  }
+  function togglePause(){
+    if(el.pauseOverlay.hidden) openPause(); else closePause();
+  }
+  function pauseGoToTitle(){
+    el.pauseOverlay.hidden = true;
+    bgm.pause();
+    el.gameView.hidden = true;
+    el.stageSelectView.hidden = false;
+    el.mainView.hidden = true;
+    el.titleView.hidden = false;
+    document.querySelectorAll('.side-art').forEach(elm => elm.classList.add('title-active'));
+  }
+  document.getElementById('pauseBtn').addEventListener('click', togglePause);
+  document.getElementById('resumePauseBtn').addEventListener('click', closePause);
+  document.getElementById('pauseTitleBtn').addEventListener('click', pauseGoToTitle);
+
   el.undoBtn.addEventListener('click', useUndo);
   el.shuffleBtn.addEventListener('click', useShuffle);
   document.getElementById('soundToggleBtn').addEventListener('click', () => {
@@ -806,6 +843,8 @@
       return;
     }
     if(el.gameView.hidden) return;
+    if(e.key==='p' || e.key==='P' || e.key==='Escape'){ e.preventDefault(); togglePause(); return; }
+    if(!el.pauseOverlay.hidden) return;
     if(e.key==='ArrowLeft'){ moveCursor(-1); }
     else if(e.key==='ArrowRight'){ moveCursor(1); }
     else if(e.key==='ArrowUp'){ moveCursor(-1); }
@@ -856,6 +895,13 @@
           gpAxisNeutral = false;
         }
       }else if(!el.gameView.hidden){
+        if(pressed(9) && !wasPressed(9)) togglePause();                         // Start: ポーズ
+
+        if(!el.pauseOverlay.hidden){
+          gpPrevButtons = gp.buttons.map(b => b.pressed);
+          requestAnimationFrame(pollGamepad);
+          return;
+        }
         if(pressed(0) && !wasPressed(0)) handleActivate(state.cursor);           // A: 確定
         if(pressed(1) && !wasPressed(1)){ state.pouringSource=null; render(); }  // B: キャンセル
         if(pressed(2) && !wasPressed(2)) useUndo();                             // X: 1滴戻す

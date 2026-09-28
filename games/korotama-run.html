@@ -145,7 +145,10 @@
 
     <div class="overlay" id="pauseOverlay" hidden>
       <h2>⏸ 一時停止中</h2>
-      <div class="btnRow"><button class="gbtn" id="resumeBtn">▶ 再開</button></div>
+      <div class="btnRow">
+        <button class="gbtn" id="resumeBtn">▶ 再開</button>
+        <button class="gbtn" id="pauseTitleBtn">🏠 タイトルへ</button>
+      </div>
     </div>
 
     <div class="overlay" id="endOverlay" hidden>
@@ -674,6 +677,15 @@
   document.getElementById('resumeBtn').addEventListener('click', ()=>{
     paused = false;
     document.getElementById('pauseOverlay').hidden = true;
+  });
+  document.getElementById('pauseTitleBtn').addEventListener('click', ()=>{
+    paused = false;
+    running = false;
+    document.getElementById('pauseOverlay').hidden = true;
+    reset();
+    document.getElementById('valCoin').textContent = 0;
+    document.getElementById('valDist').textContent = '0m';
+    document.getElementById('startOverlay').hidden = false;
   });
 
   document.getElementById('retryBtn').addEventListener('click', ()=>{

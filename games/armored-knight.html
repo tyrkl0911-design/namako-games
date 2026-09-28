@@ -300,6 +300,7 @@
             コントローラー: 十字キー移動・A ジャンプ(2段可)・X or B 攻撃・Start ポーズ/決定
           </p>
           <button class="btn" id="resumeBtn">再開する</button>
+          <button class="btn" id="pauseTitleBtn">タイトルへ戻る</button>
         </div>
       </div>
     </div>
@@ -389,6 +390,13 @@
   }
   document.getElementById('pauseBtn').addEventListener('click', ()=>{ ensureAudio(); togglePause(); });
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
+  document.getElementById('pauseTitleBtn').addEventListener('click', ()=>{
+    pauseOverlay.hidden = true;
+    stopBgm();
+    fullReset();
+    state = 'title';
+    document.getElementById('titleOverlay').hidden = false;
+  });
 
   const muteBtn = document.getElementById('muteBtn');
   muteBtn.addEventListener('click', ()=>{

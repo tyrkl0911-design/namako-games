@@ -393,6 +393,7 @@
     コントローラー: 十字キー/スティック移動・A配置・LB/RBでピース切替・Y必殺技
   </div>
   <button id="resumeBtn">再開する</button>
+  <button id="pauseTitleBtn">タイトルへ戻る</button>
 </div>
 
 <div id="ghost"></div>
@@ -474,6 +475,7 @@
   var pauseBtn = document.getElementById('pauseBtn');
   var pauseOverlay = document.getElementById('pauseOverlay');
   var resumeBtn = document.getElementById('resumeBtn');
+  var pauseTitleBtn = document.getElementById('pauseTitleBtn');
   var startOverlay = document.getElementById('startOverlay');
   var startBtn = document.getElementById('startBtn');
   var howToBtn = document.getElementById('howToBtn');
@@ -590,6 +592,7 @@
     paused = true;
     pauseTitleEl.textContent = 'ポーズ / 遊び方';
     resumeBtn.textContent = '再開する';
+    pauseTitleBtn.style.display = '';
     pauseOverlay.classList.remove('hidden');
     bgmAudio.pause();
   }
@@ -620,9 +623,15 @@
   howToBtn.addEventListener('click', function() {
     pauseTitleEl.textContent = 'あそびかた';
     resumeBtn.textContent = 'とじる';
+    pauseTitleBtn.style.display = 'none';
     pauseOverlay.classList.remove('hidden');
   });
   resumeBtn.addEventListener('click', onResumeClick);
+  pauseTitleBtn.addEventListener('click', function() {
+    pauseOverlay.classList.add('hidden');
+    startOverlay.classList.remove('hidden');
+    startGame();
+  });
   updateMuteUI();
   // 自動再生がブラウザにブロックされた場合、成功するまで毎回のユーザー操作で再試行する
   // (once:trueだと最初の1回で失敗した時点で二度と試行されなくなるため使わない)
