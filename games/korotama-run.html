@@ -679,13 +679,7 @@
     document.getElementById('pauseOverlay').hidden = true;
   });
   document.getElementById('pauseTitleBtn').addEventListener('click', ()=>{
-    paused = false;
-    running = false;
-    document.getElementById('pauseOverlay').hidden = true;
-    reset();
-    document.getElementById('valCoin').textContent = 0;
-    document.getElementById('valDist').textContent = '0m';
-    document.getElementById('startOverlay').hidden = false;
+    window.location.href = 'action-select.html';
   });
 
   document.getElementById('retryBtn').addEventListener('click', ()=>{

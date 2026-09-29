@@ -628,9 +628,7 @@
   });
   resumeBtn.addEventListener('click', onResumeClick);
   pauseTitleBtn.addEventListener('click', function() {
-    pauseOverlay.classList.add('hidden');
-    startOverlay.classList.remove('hidden');
-    startGame();
+    window.location.href = 'puzzle-select.html';
   });
   updateMuteUI();
   // 自動再生がブラウザにブロックされた場合、成功するまで毎回のユーザー操作で再試行する

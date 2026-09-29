@@ -1615,18 +1615,12 @@
   document.getElementById('btnStart').addEventListener('click', function(){ ensureAudio(); sfxUi(); startGame(); });
   document.getElementById('btnRetry').addEventListener('click', function(){ ensureAudio(); sfxUi(); startGame(); });
   document.getElementById('btnOverTitle').addEventListener('click', function(){
-    ensureAudio(); sfxUi();
-    screen('overScreen', false);
-    screen('startScreen', true);
-    backToTitle();
+    window.location.href = 'shooting-select.html';
   });
   document.getElementById('btnVictoryRetry').addEventListener('click', function(){ ensureAudio(); sfxUi(); startGame(); });
   document.getElementById('btnVictoryTitle').addEventListener('click', function(){
-    ensureAudio(); sfxUi();
     unlockGekitou();
-    screen('victoryScreen', false);
-    screen('startScreen', true);
-    backToTitle();
+    window.location.href = 'shooting-select.html';
   });
   document.getElementById('btnRetry').addEventListener('mouseenter', function(){ overSelection=0; renderOverSelection(); });
   document.getElementById('btnOverTitle').addEventListener('mouseenter', function(){ overSelection=1; renderOverSelection(); });
@@ -1635,11 +1629,7 @@
   document.getElementById('btnResume').addEventListener('click', function(){ ensureAudio(); sfxUi(); togglePause(); });
   document.getElementById('btnPauseToggle').addEventListener('click', function(){ ensureAudio(); sfxUi(); togglePause(); });
   document.getElementById('btnPauseTitle').addEventListener('click', function(){
-    ensureAudio(); sfxUi();
-    stopBgm();
-    screen('pauseScreen', false);
-    screen('startScreen', true);
-    backToTitle();
+    window.location.href = 'shooting-select.html';
   });
   function setDifficulty(d){
     difficulty = d;

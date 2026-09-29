@@ -314,6 +314,7 @@
   var startBtnRect = { x: CW/2-85, y: titleCenterY+76, w:170, h:46 };
   var pauseOverlayCenterY = HUD_H + H*0.30;
   var resumeBtnRect = { x: CW/2-85, y: pauseOverlayCenterY+98, w:170, h:46 };
+  var pauseSelectBtnRect = { x: CW/2-95, y: pauseOverlayCenterY+98+60, w:190, h:46 };
   var overCenterY = HUD_H + H*0.32;
   var retryBtnRect = { x: CW/2-95, y: overCenterY+64, w:190, h:46 };
 
@@ -345,6 +346,7 @@
     if(!started){ startGame(); return true; }
     if(paused){
       if(hitRectPt(x,y,resumeBtnRect)) setPaused(false);
+      else if(hitRectPt(x,y,pauseSelectBtnRect)) window.location.href = 'puzzle-select.html';
       return true;
     }
     if(gameOver){
@@ -814,6 +816,7 @@
     });
 
     drawButtonPill(resumeBtnRect, '再開する');
+    drawButtonPill(pauseSelectBtnRect, 'ゲーム選択へ戻る');
     ctx.restore();
   }
 

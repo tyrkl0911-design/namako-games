@@ -809,13 +809,7 @@
     if(el.pauseOverlay.hidden) openPause(); else closePause();
   }
   function pauseGoToTitle(){
-    el.pauseOverlay.hidden = true;
-    bgm.pause();
-    el.gameView.hidden = true;
-    el.stageSelectView.hidden = false;
-    el.mainView.hidden = true;
-    el.titleView.hidden = false;
-    document.querySelectorAll('.side-art').forEach(elm => elm.classList.add('title-active'));
+    window.location.href = 'puzzle-select.html';
   }
   document.getElementById('pauseBtn').addEventListener('click', togglePause);
   document.getElementById('resumePauseBtn').addEventListener('click', closePause);

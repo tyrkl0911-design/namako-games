@@ -391,11 +391,7 @@
   document.getElementById('pauseBtn').addEventListener('click', ()=>{ ensureAudio(); togglePause(); });
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
   document.getElementById('pauseTitleBtn').addEventListener('click', ()=>{
-    pauseOverlay.hidden = true;
-    stopBgm();
-    fullReset();
-    state = 'title';
-    document.getElementById('titleOverlay').hidden = false;
+    window.location.href = 'action-select.html';
   });
 
   const muteBtn = document.getElementById('muteBtn');

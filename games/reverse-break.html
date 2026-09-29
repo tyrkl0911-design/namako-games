@@ -989,13 +989,7 @@
   pauseBtn.addEventListener('click',togglePause);
   document.getElementById('resumeBtn').addEventListener('click',togglePause);
   document.getElementById('pauseTitleBtn').addEventListener('click',function(){
-    sfx('click');
-    stopBgm();
-    pauseStartedAt=null;
-    state='start';
-    pauseOverlay.hidden=true;
-    document.getElementById('startOverlay').hidden=false;
-    syncPauseBtn();
+    window.location.href = 'breakout-select.html';
   });
 
   var muteBtn=document.getElementById('muteBtn');
