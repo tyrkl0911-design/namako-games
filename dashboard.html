@@ -82,6 +82,11 @@
   </div>
 
   <div class="panel">
+    <h2>ゲーム別プレイ数</h2>
+    <div id="gameRanking"></div>
+  </div>
+
+  <div class="panel">
     <h2>ページ別アクセス数(上位10)</h2>
     <div id="pageRanking"></div>
   </div>
@@ -102,6 +107,18 @@
   });
 
   function fmt(n){ return (n||0).toLocaleString('ja-JP'); }
+
+  var GAME_NAMES = {
+    '/games/origami-ace.html': 'Origami Ace',
+    '/games/fruit-merge.html': 'まんまるコイン',
+    '/games/water-sort.html': 'ウォーターミックス',
+    '/games/korotama-run.html': 'コロタマ走',
+    '/games/chain-blaster.html': 'チェインブラスター',
+    '/games/armored-knight.html': 'アーマードナイト',
+    '/games/reverse-break.html': 'リバースブレイク',
+    '/games/park-defenders.html': 'まもれ!ぼくらの公園',
+    '/games/soul-like.html': 'Ashen Vow'
+  };
 
   function dateRangeJST(days){
     var out = [];
@@ -144,11 +161,10 @@
       '</svg>';
   }
 
-  function renderRanking(byPage){
-    var entries = Object.keys(byPage).map(function(k){ return [k, byPage[k]]; });
-    entries.sort(function(a,b){ return b[1]-a[1]; });
-    entries = entries.slice(0, 10);
-    var el = document.getElementById('pageRanking');
+  function renderBars(elId, entries, limit){
+    entries = entries.slice().sort(function(a,b){ return b[1]-a[1]; });
+    if (limit) entries = entries.slice(0, limit);
+    var el = document.getElementById(elId);
     if (entries.length === 0) {
       el.innerHTML = '<div class="empty">まだデータがありません</div>';
       return;
@@ -162,6 +178,18 @@
         '<div class="count">'+fmt(e[1])+'</div>' +
       '</div>';
     }).join('');
+  }
+
+  function renderRanking(byPage){
+    var entries = Object.keys(byPage).map(function(k){ return [k, byPage[k]]; });
+    renderBars('pageRanking', entries, 10);
+  }
+
+  function renderGameRanking(byPage){
+    var entries = Object.keys(GAME_NAMES).map(function(path){
+      return [GAME_NAMES[path], byPage[path] || 0];
+    }).filter(function(e){ return e[1] > 0; });
+    renderBars('gameRanking', entries, null);
   }
 
   function load(token){
@@ -187,6 +215,7 @@
         document.getElementById('card30d').textContent = fmt(sum(days30));
 
         renderTrend(byDate);
+        renderGameRanking(byPage);
         renderRanking(byPage);
 
         document.getElementById('updatedAt').textContent = '取得時刻: ' + new Date().toLocaleString('ja-JP');
