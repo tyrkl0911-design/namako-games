@@ -175,6 +175,17 @@
     z-index:20;
   }
   .mute-btn:focus-visible{ outline:3px solid var(--focus); outline-offset:2px; }
+  .pause-btn{
+    position:fixed; top:14px; left:14px;
+    width:38px; height:38px;
+    border:none; border-radius:50%;
+    background:var(--paper); color:var(--ink);
+    font-size:15px; line-height:1;
+    cursor:pointer;
+    box-shadow:0 3px 8px rgba(20,10,0,.25);
+    z-index:20;
+  }
+  .pause-btn:focus-visible{ outline:3px solid var(--focus); outline-offset:2px; }
 
   .overlay{
     position:absolute; inset:0;
@@ -344,46 +355,51 @@
   }
   .dpad{
     position:relative;
-    width:126px; height:126px;
+    width:168px; height:168px;
     flex:0 0 auto;
   }
   .dpad-btn{
     position:absolute;
-    width:42px; height:42px;
+    width:56px; height:56px;
     border:none;
-    border-radius:10px;
+    border-radius:12px;
     background:rgba(107,88,71,.16);
     color:var(--ink);
-    font-size:16px;
+    font-size:20px;
     line-height:1;
     display:flex; align-items:center; justify-content:center;
     box-shadow:0 2px 0 rgba(20,10,0,.15);
     touch-action:none;
   }
-  .dpad-btn.up{ top:0; left:42px; }
-  .dpad-btn.down{ top:84px; left:42px; }
-  .dpad-btn.left{ top:42px; left:0; }
-  .dpad-btn.right{ top:42px; left:84px; }
+  .dpad-btn.up{ top:0; left:56px; }
+  .dpad-btn.down{ top:112px; left:56px; }
+  .dpad-btn.left{ top:56px; left:0; }
+  .dpad-btn.right{ top:56px; left:112px; }
   .dpad-btn.pressed{ background:var(--gold); color:var(--gold-ink); transform:translateY(1px); box-shadow:0 1px 0 rgba(20,10,0,.15); }
   .action-pad{
     display:flex;
-    align-items:flex-end;
-    gap:10px;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
     flex:0 0 auto;
   }
+  .action-row{
+    display:flex;
+    gap:14px;
+  }
   .action-btn{
-    width:52px; height:52px;
+    width:64px; height:64px;
     border:none;
     border-radius:50%;
     color:#fff5ee;
     font-weight:700;
-    font-size:14px;
+    font-size:17px;
     line-height:1;
     box-shadow:0 3px 0 rgba(20,10,0,.2);
     touch-action:none;
   }
   .action-btn.spread{ background:var(--teal); }
-  .action-btn.beam{ background:var(--red); margin-bottom:16px; }
+  .action-btn.beam{ background:var(--red); }
   .action-btn.bomb{ background:var(--purple); }
   .action-btn.pressed{ filter:brightness(1.18); transform:translateY(2px); box-shadow:0 1px 0 rgba(20,10,0,.2); }
 
@@ -393,6 +409,7 @@
 </style>
 
 <button class="mute-btn" id="btnMute" type="button" aria-label="音のオン/オフ" title="音のオン/オフ">🔊</button>
+<button class="pause-btn" id="btnPauseToggle" type="button" aria-label="一時停止" title="一時停止" hidden>⏸</button>
 <p class="eyebrow">折り紙スカイシューター</p>
 
 <div class="stage">
@@ -470,6 +487,8 @@
         <h2>一時停止中</h2>
         <p>ひと息ついて — 空はまだ待っている。</p>
         <button class="cta" id="btnResume">再開 ▸</button>
+        <button class="cta secondary" id="btnPauseTitle" type="button">タイトル画面に戻る ▸</button>
+        <p class="footnote" style="margin-top:8px;">🎮 △(Triangle)でも選べます</p>
       </div>
     </div>
   </div>
@@ -483,8 +502,10 @@
     <button type="button" class="dpad-btn right" data-dir="right" aria-label="右へ移動">▶</button>
   </div>
   <div class="action-pad">
-    <button type="button" class="action-btn spread" id="btnTouchSpread" aria-label="3方向弾">○</button>
-    <button type="button" class="action-btn beam" id="btnTouchBeam" aria-label="ビーム">✕</button>
+    <div class="action-row">
+      <button type="button" class="action-btn spread" id="btnTouchSpread" aria-label="3方向弾">○</button>
+      <button type="button" class="action-btn beam" id="btnTouchBeam" aria-label="ビーム">✕</button>
+    </div>
     <button type="button" class="action-btn bomb" id="btnTouchBomb" aria-label="ボム">□</button>
   </div>
 </div>
@@ -837,6 +858,8 @@
       } else if (state==='victory'){
         var vt = document.getElementById('btnVictoryTitle');
         if (!vt.hidden) vt.click();
+      } else if (state==='paused'){
+        document.getElementById('btnPauseTitle').click();
       }
     }
     if (options && !gpPrevButtons[9]){
@@ -1523,6 +1546,8 @@
   function syncTouchControls(){
     var el = document.getElementById('touchControls');
     if (el) el.hidden = (state !== 'playing');
+    var pauseBtn = document.getElementById('btnPauseToggle');
+    if (pauseBtn) pauseBtn.hidden = (state !== 'playing');
   }
 
   function startGame(){
@@ -1608,6 +1633,14 @@
   document.getElementById('btnVictoryRetry').addEventListener('mouseenter', function(){ victorySelection=0; renderVictorySelection(); });
   document.getElementById('btnVictoryTitle').addEventListener('mouseenter', function(){ victorySelection=1; renderVictorySelection(); });
   document.getElementById('btnResume').addEventListener('click', function(){ ensureAudio(); sfxUi(); togglePause(); });
+  document.getElementById('btnPauseToggle').addEventListener('click', function(){ ensureAudio(); sfxUi(); togglePause(); });
+  document.getElementById('btnPauseTitle').addEventListener('click', function(){
+    ensureAudio(); sfxUi();
+    stopBgm();
+    screen('pauseScreen', false);
+    screen('startScreen', true);
+    backToTitle();
+  });
   function setDifficulty(d){
     difficulty = d;
     document.getElementById('btnEasy').classList.toggle('active', d==='easy');
