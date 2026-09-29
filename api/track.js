@@ -12,6 +12,8 @@ module.exports = async (req, res) => {
     stats.total += 1;
     stats.byDate[today] = (stats.byDate[today] || 0) + 1;
     stats.byPage[path] = (stats.byPage[path] || 0) + 1;
+    stats.byDatePage[today] = stats.byDatePage[today] || {};
+    stats.byDatePage[today][path] = (stats.byDatePage[today][path] || 0) + 1;
 
     await saveStats(stats);
     res.status(204).end();
