@@ -314,8 +314,8 @@
   var titleCenterY = HUD_H + H*0.34;
   var startBtnRect = { x: CW/2-85, y: titleCenterY+76, w:170, h:46 };
   var pauseOverlayCenterY = HUD_H + H*0.30;
-  var resumeBtnRect = { x: CW/2-85, y: pauseOverlayCenterY+98, w:170, h:46 };
-  var pauseSelectBtnRect = { x: CW/2-95, y: pauseOverlayCenterY+98+60, w:190, h:46 };
+  var pauseSelectBtnRect = { x: CW/2-95, y: pauseOverlayCenterY+98, w:190, h:46 };
+  var resumeBtnRect = { x: CW/2-85, y: pauseOverlayCenterY+98+60, w:170, h:46 };
   var overCenterY = HUD_H + H*0.32;
   var retryBtnRect = { x: CW/2-95, y: overCenterY+64, w:190, h:46 };
 
@@ -816,8 +816,8 @@
       ctx.fillText(line, CW/2, pauseOverlayCenterY+36+i*24);
     });
 
-    drawButtonPill(resumeBtnRect, '再開する');
     drawButtonPill(pauseSelectBtnRect, 'ゲーム選択へ戻る');
+    drawButtonPill(resumeBtnRect, '再開する');
     ctx.restore();
   }
 
