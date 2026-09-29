@@ -1,4 +1,5 @@
 <title>リバースブレイク</title>
+<script src="/assets/track.js" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
@@ -1076,6 +1077,7 @@
     if(state!=='playing' || e.target!==document.body) return;
     try{ document.body.setPointerCapture(e.pointerId); }catch(err){}
     paddleTargetX = pointerToX(e)-PADDLE_W/2;
+    launchBall();
   });
   document.body.addEventListener('pointermove',function(e){
     if(state!=='playing' || e.target!==document.body) return;
