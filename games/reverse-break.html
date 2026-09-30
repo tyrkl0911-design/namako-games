@@ -125,6 +125,11 @@
     backdrop-filter:blur(1px);
     overflow-y:auto;
   }
+  #pauseOverlay{
+    /* the explanation text can be taller than the screen on narrow phones —
+       scroll instead of clipping the title/buttons at the top */
+    justify-content:flex-start;
+  }
   .pause-icon-btn{
     position:absolute;
     top:8px;
