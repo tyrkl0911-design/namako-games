@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <title>ウォーターミックス</title>
-<script src="/assets/track.js" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<script src="/assets/track.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="leaderboard-firebase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <style>
@@ -342,6 +346,15 @@
         <div class="message" id="message"></div>
         <div id="clearOverlay" class="clear-overlay" hidden>
           <h2>ステージクリア!</h2>
+          <div id="lbSection" style="display:none; width:100%; max-width:280px;">
+            <div style="font-size:11px; color:var(--amber); font-weight:bold;">🏆 クリア済みステージ数ランキング(上位10位)</div>
+            <div id="lbEntry" style="display:flex; gap:6px; margin-top:4px;">
+              <input id="lbNameInput" maxlength="10" placeholder="ニックネーム" style="flex:1; min-width:0; padding:7px; border-radius:6px; border:1px solid var(--cabinet-edge); background:var(--screen); color:var(--ink); font-family:inherit; font-size:12px;">
+              <button id="lbSubmitBtn" style="padding:7px 12px; font-size:12px;">登録</button>
+            </div>
+            <div id="lbStatus" style="font-size:10px; color:var(--ink-dim); margin-top:3px; min-height:12px;"></div>
+            <div id="lbList" style="margin-top:4px; text-align:left; font-size:12px; max-height:130px; overflow-y:auto;"></div>
+          </div>
           <div style="display:flex; gap:8px;">
             <button id="nextStageBtn" class="primary">次のステージへ</button>
             <button id="backToSelectBtn">ステージ選択</button>
@@ -591,12 +604,106 @@
     if(isSolved(state.bottles)){
       state.cleared = true;
       const progress = loadProgress();
-      if(state.stageIndex > progress.cleared){
+      const isNewFurthest = state.stageIndex > progress.cleared;
+      if(isNewFurthest){
         progress.cleared = state.stageIndex;
         saveProgress(progress);
       }
+      // ランキング登録は「このブラウザでの自己最長クリア記録を更新したとき」だけ促す。
+      // クリア済みのステージをステージ選択からやり直した場合は、絶対に新記録にならないので登録UIを出さない。
+      if(isNewFurthest){
+        document.getElementById('lbSection').style.display = lbDb ? 'block' : 'none';
+        showLeaderboardStatus();
+        refreshRanking();
+      } else {
+        document.getElementById('lbSection').style.display = 'none';
+      }
     }
   }
+
+  // ---- クリア済みステージ数ランキング(共有データベース: Firebase Firestore。匿名ログインで誰でも自分の記録を登録可) ----
+  // このゲームは10ステージのパズルで「スコア」の概念がないため、進んだステージ数(1〜10)をランキング値として使う。
+  const LB_NAME_KEY = 'waterSortNickname';
+  let lbDb = null, lbMyId = null;
+
+  function escapeHtml(s){
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function showLeaderboardStatus(){
+    const el2 = document.getElementById('lbStatus');
+    if (el2) el2.textContent = (lbDb && !lbMyId) ? '登録にはサインインが必要です(閲覧のみ可能)' : '';
+  }
+
+  async function initLeaderboard(){
+    try{
+      lbDb = window.NamakoLB ? window.NamakoLB('waterSort') : null;
+      if (lbDb) lbMyId = await lbDb.myId();
+    }catch(e){}
+    if (lbDb){
+      let savedName = '';
+      try{ savedName = localStorage.getItem(LB_NAME_KEY) || ''; }catch(e){}
+      if (lbMyId){
+        document.getElementById('lbNameInput').value = savedName;
+      } else {
+        document.getElementById('lbEntry').style.display = 'none';
+      }
+    }
+  }
+
+  async function refreshRanking(){
+    const listEl = document.getElementById('lbList');
+    if (!lbDb || !listEl) return;
+    try{
+      const snap = await lbDb.collection('scores').orderBy('score', 'desc').limit(10).get();
+      if (snap.empty){
+        listEl.innerHTML = '<div style="color:var(--ink-dim);">まだ登録がありません</div>';
+        return;
+      }
+      let html = '';
+      snap.docs.forEach((d, i)=>{
+        const data = d.data() || {};
+        const name = data.name || '名無し';
+        const sc = data.score || 0;
+        const mine = d.id === lbMyId;
+        html += '<div style="display:flex; justify-content:space-between; padding:2px 0;' + (mine ? ' color:var(--amber); font-weight:bold;' : '') + '">' +
+          '<span>' + (i+1) + '位 ' + escapeHtml(name) + '</span><span>' + sc + '/10</span></div>';
+      });
+      listEl.innerHTML = html;
+    }catch(e){
+      listEl.innerHTML = '<div style="color:#ff8a8a;">ランキング取得に失敗しました</div>';
+    }
+  }
+
+  async function submitScoreToLeaderboard(){
+    const statusEl = document.getElementById('lbStatus');
+    if (!lbDb || !lbMyId){ statusEl.textContent = '登録にはサインインが必要です'; return; }
+    const nameInput = document.getElementById('lbNameInput');
+    const name = nameInput.value.trim().slice(0, 10);
+    if (!name){ statusEl.textContent = 'ニックネームを入力してください'; return; }
+    try{ localStorage.setItem(LB_NAME_KEY, name); }catch(e){}
+    statusEl.textContent = '登録中...';
+    const clearedStages = state.stageIndex + 1;
+    try{
+      const ref = lbDb.doc('scores/' + lbMyId);
+      const snap = await ref.get();
+      const prev = snap.exists ? snap.data() : null;
+      if (!prev || clearedStages > (prev.score || 0)){
+        await ref.set({ name, score: clearedStages, ts: Date.now() });
+        statusEl.textContent = '登録しました!';
+      } else {
+        statusEl.textContent = '自己ベストを更新できませんでした(自己ベスト: ' + prev.score + '/10)';
+      }
+    }catch(e){
+      statusEl.textContent = '登録に失敗しました';
+    }
+    refreshRanking();
+  }
+
+  document.getElementById('lbSubmitBtn').addEventListener('click', submitScoreToLeaderboard);
+  initLeaderboard();
 
   function useUndo(){
     if(state.cleared || state.skills.undo<=0 || state.history.length===0) return;
@@ -810,7 +917,13 @@
     if(el.pauseOverlay.hidden) openPause(); else closePause();
   }
   function pauseGoToTitle(){
-    window.location.href = 'puzzle-select.html';
+    el.pauseOverlay.hidden = true;
+    bgm.pause();
+    el.gameView.hidden = true;
+    el.stageSelectView.hidden = false;
+    el.mainView.hidden = true;
+    el.titleView.hidden = false;
+    document.querySelectorAll('.side-art').forEach(elm => elm.classList.add('title-active'));
   }
   document.getElementById('pauseBtn').addEventListener('click', togglePause);
   document.getElementById('resumePauseBtn').addEventListener('click', closePause);

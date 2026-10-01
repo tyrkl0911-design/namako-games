@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>コロタマ走</title>
 <script src="/assets/track.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="leaderboard-firebase.js"></script>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
   html, body {
@@ -157,6 +161,15 @@
       <div class="rank" id="endRank">🥚</div>
       <p id="endStageName">タマゴ(小)のまま終了</p>
       <p>距離: <span id="endDist">0</span>m / コイン: <span id="endCoin">0</span></p>
+      <div id="lbSection" style="display:none; width:100%; max-width:300px;">
+        <div style="font-size:12px; color:#ffe066; font-weight:bold;">🏆 距離ランキング(上位10位)</div>
+        <div id="lbEntry" style="display:flex; gap:6px; margin-top:4px;">
+          <input id="lbNameInput" maxlength="10" placeholder="ニックネーム" style="flex:1; min-width:0; padding:7px; border-radius:6px; border:1px solid #3a5a78; background:#14202e; color:#eee; font-family:inherit; font-size:12px;">
+          <button id="lbSubmitBtn" class="gbtn secondary" style="padding:7px 12px; font-size:12px;">登録</button>
+        </div>
+        <div id="lbStatus" style="font-size:10px; color:#7fa8cc; margin-top:3px; min-height:12px;"></div>
+        <div id="lbList" style="margin-top:4px; text-align:left; font-size:12px; max-height:140px; overflow-y:auto;"></div>
+      </div>
       <div class="btnRow">
         <button class="gbtn" id="retryBtn">🔁 もう一度</button>
       </div>
@@ -463,7 +476,95 @@
     document.getElementById('endStageName').textContent = '姿: ' + stageInfo().name;
     document.getElementById('endOverlay').hidden = false;
     sfxHit();
+    document.getElementById('lbSection').style.display = lbDb ? 'block' : 'none';
+    showLeaderboardStatus();
+    refreshRanking();
   }
+
+  // ---- 距離ランキング(共有データベース: Firebase Firestore。匿名ログインで誰でも自分の記録を登録可) ----
+  // 他ゲームとスキーマを揃えるため、DBのコレクション名/フィールド名は score のままにしているが、
+  // このゲームに「スコア」の概念はなく、実際に格納しているのは距離(m, finalDist = Math.floor(distance))。
+  var LB_NAME_KEY = 'korotamaRunNickname';
+  var lbDb = null, lbMyId = null;
+
+  function escapeHtml(s){
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function showLeaderboardStatus(){
+    var el = document.getElementById('lbStatus');
+    if (el) el.textContent = (lbDb && !lbMyId) ? '登録にはサインインが必要です(閲覧のみ可能)' : '';
+  }
+
+  async function initLeaderboard(){
+    try{
+      lbDb = window.NamakoLB ? window.NamakoLB('korotamaRun') : null;
+      if (lbDb) lbMyId = await lbDb.myId();
+    }catch(e){}
+    if (lbDb){
+      var savedName = '';
+      try{ savedName = localStorage.getItem(LB_NAME_KEY) || ''; }catch(e){}
+      if (lbMyId){
+        document.getElementById('lbNameInput').value = savedName;
+      } else {
+        document.getElementById('lbEntry').style.display = 'none';
+      }
+    }
+  }
+
+  async function refreshRanking(){
+    var listEl = document.getElementById('lbList');
+    if (!lbDb || !listEl) return;
+    try{
+      var snap = await lbDb.collection('scores').orderBy('score', 'desc').limit(10).get();
+      if (snap.empty){
+        listEl.innerHTML = '<div style="color:#7fa8cc;">まだ登録がありません</div>';
+        return;
+      }
+      var html = '';
+      snap.docs.forEach(function(d, i){
+        var data = d.data() || {};
+        var name = data.name || '名無し';
+        var sc = data.score || 0;
+        var mine = d.id === lbMyId;
+        html += '<div style="display:flex; justify-content:space-between; padding:2px 0;' + (mine ? ' color:#ffe066; font-weight:bold;' : '') + '">' +
+          '<span>' + (i + 1) + '位 ' + escapeHtml(name) + '</span><span>' + sc + 'm</span></div>';
+      });
+      listEl.innerHTML = html;
+    }catch(e){
+      listEl.innerHTML = '<div style="color:#ff8a8a;">ランキング取得に失敗しました</div>';
+    }
+  }
+
+  async function submitScoreToLeaderboard(){
+    var statusEl = document.getElementById('lbStatus');
+    if (!lbDb || !lbMyId){ statusEl.textContent = '登録にはサインインが必要です'; return; }
+    var nameInput = document.getElementById('lbNameInput');
+    var name = nameInput.value.trim().slice(0, 10);
+    if (!name){ statusEl.textContent = 'ニックネームを入力してください'; return; }
+    try{ localStorage.setItem(LB_NAME_KEY, name); }catch(e){}
+    statusEl.textContent = '登録中...';
+    var finalDist = Math.floor(distance);
+    try{
+      var ref = lbDb.doc('scores/' + lbMyId);
+      var snap = await ref.get();
+      var prev = snap.exists ? snap.data() : null;
+      if (!prev || finalDist > (prev.score || 0)){
+        await ref.set({ name: name, score: finalDist, ts: Date.now() });
+        statusEl.textContent = '登録しました!';
+      } else {
+        statusEl.textContent = '自己ベストを更新できませんでした(自己ベスト: ' + prev.score + 'm)';
+      }
+    }catch(e){
+      statusEl.textContent = '登録に失敗しました';
+    }
+    refreshRanking();
+  }
+
+  document.getElementById('lbSubmitBtn').addEventListener('click', submitScoreToLeaderboard);
+  initLeaderboard();
 
   function update(dt){
     if (!running || paused || over) return;
@@ -680,7 +781,13 @@
     document.getElementById('pauseOverlay').hidden = true;
   });
   document.getElementById('pauseTitleBtn').addEventListener('click', ()=>{
-    window.location.href = 'action-select.html';
+    paused = false;
+    running = false;
+    document.getElementById('pauseOverlay').hidden = true;
+    reset();
+    document.getElementById('valCoin').textContent = 0;
+    document.getElementById('valDist').textContent = '0m';
+    document.getElementById('startOverlay').hidden = false;
   });
 
   document.getElementById('retryBtn').addEventListener('click', ()=>{

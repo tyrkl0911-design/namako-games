@@ -3,6 +3,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="leaderboard-firebase.js"></script>
 <style>
   :root{
     --bg:#0a0e1a;
@@ -124,11 +128,6 @@
     background:rgba(6,9,17,0.86);
     backdrop-filter:blur(1px);
     overflow-y:auto;
-  }
-  #pauseOverlay{
-    /* the explanation text can be taller than the screen on narrow phones —
-       scroll instead of clipping the title/buttons at the top */
-    justify-content:flex-start;
   }
   .pause-icon-btn{
     position:absolute;
@@ -265,8 +264,6 @@
 
       <div class="overlay" id="pauseOverlay" hidden>
         <h2>PAUSE</h2>
-        <button id="resumeBtn">つづける</button>
-        <button id="pauseTitleBtn">タイトルへ戻る</button>
         <div class="pause-legend">
           <div><b>ブロックは上下両方</b>に配置されている。反転ボタンで重力方向を反転すると、ボールとパドルの上下関係が入れ替わり、攻める面を切り替えられる。反転には短いクールタイム(例:0.6秒)があり、連打はできない。</div>
           <div style="margin-top:10px"><span class="dot" style="background:var(--green)"></span><b>耐久1</b> のブロック。1発で破壊。</div>
@@ -281,6 +278,8 @@
           <div><span class="dot" style="background:#5a6280"></span><b>ボス面の装甲</b>。囲まれた<span class="dot" style="background:var(--magenta)"></span><b>コア</b>(装甲を全て崩すと露出)を攻撃してHPを削り切れば撃破。コアHPは上下面で共有。</div>
           <div><span class="dot" style="background:var(--amber)"></span><b>妨害弾</b>(ボス面のみ)。反転ではなくパドルの左右移動で避ける。</div>
         </div>
+        <button id="resumeBtn">つづける</button>
+        <button id="pauseTitleBtn">タイトルへ戻る</button>
       </div>
 
       <div class="overlay" id="clearOverlay" hidden>
@@ -293,6 +292,15 @@
       <div class="overlay" id="overOverlay" hidden>
         <h2>GAME OVER</h2>
         <p class="score-line" id="overScoreLine">SCORE 0 / HI-SCORE 0</p>
+        <div id="lbSection" style="display:none; width:100%; max-width:280px;">
+          <div style="font-size:12px; color:var(--amber); font-weight:bold;">🏆 ランキング(上位10位)</div>
+          <div id="lbEntry" style="display:flex; gap:6px; margin-top:6px;">
+            <input id="lbNameInput" maxlength="10" placeholder="ニックネーム" style="flex:1; min-width:0; padding:7px; border-radius:6px; border:1px solid var(--cabinet-edge); background:var(--screen); color:var(--ink); font-family:inherit; font-size:12px;">
+            <button id="lbSubmitBtn" style="padding:7px 12px; font-size:12px; box-shadow:none; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);">登録</button>
+          </div>
+          <div id="lbStatus" style="font-size:10px; color:var(--ink-dim); margin-top:4px; min-height:12px;"></div>
+          <div id="lbList" style="margin-top:4px; text-align:left; font-size:12px; max-height:130px; overflow-y:auto;"></div>
+        </div>
         <button id="retryBtn">もう一度</button>
       </div>
     </div>
@@ -602,7 +610,96 @@
     document.getElementById('overScoreLine').textContent='SCORE '+score+' / HI-SCORE '+highScore;
     document.getElementById('overOverlay').hidden=false;
     syncPauseBtn();
+    showLeaderboardStatus();
+    refreshRanking();
   }
+
+  // ---- ランキング(共有データベース: Firebase Firestore。匿名ログインで誰でも自分の記録を登録可) ----
+  var LB_NAME_KEY = 'reverseBreakNickname';
+  var lbDb = null, lbMyId = null;
+
+  function escapeHtml(s){
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function showLeaderboardStatus(){
+    var el = document.getElementById('lbStatus');
+    if (el) el.textContent = (lbDb && !lbMyId) ? '登録にはサインインが必要です(閲覧のみ可能)' : '';
+  }
+
+  // lbSectionの表示・非表示は、gameOver()がいつ呼ばれても正しく反映されるよう、
+  // ここ(初期化の解決後)で一元的に決める。
+  function initLeaderboard(){
+    lbDb = window.NamakoLB ? window.NamakoLB('reverseBreak') : null;
+    (lbDb ? lbDb.myId() : Promise.resolve(null)).then(function(id){
+      lbMyId = id;
+      var section = document.getElementById('lbSection');
+      if (section) section.style.display = lbDb ? 'block' : 'none';
+      if (lbDb){
+        var savedName = '';
+        try{ savedName = localStorage.getItem(LB_NAME_KEY) || ''; }catch(e){}
+        if (lbMyId){
+          document.getElementById('lbNameInput').value = savedName;
+        } else {
+          document.getElementById('lbEntry').style.display = 'none';
+        }
+      }
+    }).catch(function(){});
+  }
+
+  function refreshRanking(){
+    var listEl = document.getElementById('lbList');
+    if (!lbDb || !listEl) return;
+    lbDb.collection('scores').orderBy('score', 'desc').limit(10).get().then(function(snap){
+      if (snap.empty){
+        listEl.innerHTML = '<div style="color:var(--ink-dim);">まだ登録がありません</div>';
+        return;
+      }
+      var html = '';
+      snap.docs.forEach(function(d, i){
+        var data = d.data() || {};
+        var name = data.name || '名無し';
+        var sc = data.score || 0;
+        var mine = d.id === lbMyId;
+        html += '<div style="display:flex; justify-content:space-between; padding:2px 0;' + (mine ? ' color:var(--amber); font-weight:bold;' : '') + '">' +
+          '<span>' + (i+1) + '位 ' + escapeHtml(name) + '</span><span>' + sc + '</span></div>';
+      });
+      listEl.innerHTML = html;
+    }).catch(function(){
+      listEl.innerHTML = '<div style="color:var(--magenta);">ランキング取得に失敗しました</div>';
+    });
+  }
+
+  function submitScoreToLeaderboard(){
+    var statusEl = document.getElementById('lbStatus');
+    if (!lbDb || !lbMyId){ statusEl.textContent = '登録にはサインインが必要です'; return; }
+    var nameInput = document.getElementById('lbNameInput');
+    var name = nameInput.value.trim().slice(0, 10);
+    if (!name){ statusEl.textContent = 'ニックネームを入力してください'; return; }
+    try{ localStorage.setItem(LB_NAME_KEY, name); }catch(e){}
+    statusEl.textContent = '登録中...';
+    var finalScoreVal = score;
+    var ref = lbDb.doc('scores/' + lbMyId);
+    ref.get().then(function(snap){
+      var prev = snap.exists ? snap.data() : null;
+      if (!prev || finalScoreVal > (prev.score || 0)){
+        return ref.set({ name: name, score: finalScoreVal, ts: Date.now() }).then(function(){
+          statusEl.textContent = '登録しました!';
+        });
+      } else {
+        statusEl.textContent = '自己ベストを更新できませんでした(自己ベスト: ' + prev.score + ')';
+      }
+    }).catch(function(){
+      statusEl.textContent = '登録に失敗しました';
+    }).then(function(){
+      refreshRanking();
+    });
+  }
+
+  document.getElementById('lbSubmitBtn').addEventListener('click', submitScoreToLeaderboard);
+  initLeaderboard();
 
   function stageClear(){
     state='clear';
@@ -995,7 +1092,13 @@
   pauseBtn.addEventListener('click',togglePause);
   document.getElementById('resumeBtn').addEventListener('click',togglePause);
   document.getElementById('pauseTitleBtn').addEventListener('click',function(){
-    window.location.href = 'breakout-select.html';
+    sfx('click');
+    stopBgm();
+    pauseStartedAt=null;
+    state='start';
+    pauseOverlay.hidden=true;
+    document.getElementById('startOverlay').hidden=false;
+    syncPauseBtn();
   });
 
   var muteBtn=document.getElementById('muteBtn');

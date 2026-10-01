@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>チェインブラスター</title>
 <script src="/assets/track.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="leaderboard-firebase.js"></script>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
   html, body {
@@ -384,8 +388,6 @@
 
 <div id="pauseOverlay" class="hidden">
   <h2 id="pauseTitle">ポーズ / 遊び方</h2>
-  <button id="resumeBtn">再開する</button>
-  <button id="pauseTitleBtn">タイトルへ戻る</button>
   <div class="legend-text">
     行か列を埋めると消去、コンボを繋いで必殺技を狙おう。<br><br>
     🧊氷 = 2回消去で破壊<br>
@@ -395,6 +397,8 @@
     3/5/8コンボで必殺技が自動発動、10コンボで好きな場所を自由に爆破できる。<br><br>
     コントローラー: 十字キー/スティック移動・A配置・LB/RBでピース切替・Y必殺技
   </div>
+  <button id="resumeBtn">再開する</button>
+  <button id="pauseTitleBtn">タイトルへ戻る</button>
 </div>
 
 <div id="ghost"></div>
@@ -407,6 +411,15 @@
   <div class="stat">ハイスコア: <b id="finalHigh">0</b></div>
   <div class="stat">最大コンボ: <b id="finalCombo">0</b></div>
   <div class="stat" id="newRecord" style="color:#ffd740; display:none;">★ ハイスコア更新! ★</div>
+  <div id="lbSection" style="display:none; width:100%; max-width:320px;">
+    <div style="font-size:13px; color:#ffd740; font-weight:bold; margin-top:6px;">🏆 ランキング(上位10位)</div>
+    <div id="lbEntry" style="display:flex; gap:6px; margin-top:6px;">
+      <input id="lbNameInput" maxlength="10" placeholder="ニックネーム" style="flex:1; min-width:0; padding:8px; border-radius:6px; border:2px solid #444466; background:#1a1a2e; color:#eee; font-family:inherit; font-size:13px;">
+      <button id="lbSubmitBtn" style="padding:8px 14px; border-radius:6px; border:2px solid #b9ffd6; background:linear-gradient(180deg,#69f0ae,#00c853); color:#10101c; font-weight:bold; cursor:pointer; font-family:inherit; font-size:13px;">登録</button>
+    </div>
+    <div id="lbStatus" style="font-size:11px; color:#8899bb; margin-top:4px; min-height:14px;"></div>
+    <div id="lbList" style="margin-top:6px; text-align:left; font-size:13px; max-height:180px; overflow-y:auto;"></div>
+  </div>
   <button id="restartBtn">もう一度遊ぶ</button>
 </div>
 
@@ -629,7 +642,9 @@
   });
   resumeBtn.addEventListener('click', onResumeClick);
   pauseTitleBtn.addEventListener('click', function() {
-    window.location.href = 'puzzle-select.html';
+    pauseOverlay.classList.add('hidden');
+    startOverlay.classList.remove('hidden');
+    startGame();
   });
   updateMuteUI();
   // 自動再生がブラウザにブロックされた場合、成功するまで毎回のユーザー操作で再試行する
@@ -1362,7 +1377,90 @@
     document.getElementById('newRecord').style.display = isRecord ? 'block' : 'none';
     overlay.classList.remove('hidden');
     renderPadCursor();
+    var lbStatusEl = document.getElementById('lbStatus');
+    if (lbStatusEl) lbStatusEl.textContent = (lbDb && !lbMyId) ? '登録にはサインインが必要です(閲覧のみ可能)' : '';
+    refreshRanking();
   }
+
+  // ---- ランキング(共有データベース: Firebase Firestore。匿名ログインで誰でも自分の記録を登録可) ----
+  var LB_NAME_KEY = 'chainBlasterNickname';
+  var lbDb = null, lbMyId = null;
+
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  async function initLeaderboard() {
+    try {
+      lbDb = window.NamakoLB ? window.NamakoLB('chainBlaster') : null;
+      if (lbDb) lbMyId = await lbDb.myId();
+    } catch (e) {}
+    if (lbDb) {
+      var lbSection = document.getElementById('lbSection');
+      lbSection.style.display = 'block';
+      if (lbMyId) {
+        var savedName = '';
+        try { savedName = localStorage.getItem(LB_NAME_KEY) || ''; } catch (e) {}
+        document.getElementById('lbNameInput').value = savedName;
+      } else {
+        document.getElementById('lbEntry').style.display = 'none';
+        document.getElementById('lbStatus').textContent = '登録にはサインインが必要です(閲覧のみ可能)';
+      }
+    }
+  }
+
+  async function refreshRanking() {
+    var listEl = document.getElementById('lbList');
+    if (!lbDb || !listEl) return;
+    try {
+      var snap = await lbDb.collection('scores').orderBy('score', 'desc').limit(10).get();
+      if (snap.empty) {
+        listEl.innerHTML = '<div style="color:#8899bb;">まだ登録がありません</div>';
+        return;
+      }
+      var html = '';
+      snap.docs.forEach(function(d, i) {
+        var data = d.data() || {};
+        var name = data.name || '名無し';
+        var sc = data.score || 0;
+        var mine = d.id === lbMyId;
+        html += '<div style="display:flex; justify-content:space-between; padding:3px 0;' + (mine ? ' color:#ffd740; font-weight:bold;' : '') + '">' +
+          '<span>' + (i + 1) + '位 ' + escapeHtml(name) + '</span><span>' + sc + '</span></div>';
+      });
+      listEl.innerHTML = html;
+    } catch (e) {
+      listEl.innerHTML = '<div style="color:#ff5252;">ランキング取得に失敗しました</div>';
+    }
+  }
+
+  async function submitScoreToLeaderboard() {
+    var statusEl = document.getElementById('lbStatus');
+    if (!lbDb || !lbMyId) { statusEl.textContent = '登録にはサインインが必要です'; return; }
+    var nameInput = document.getElementById('lbNameInput');
+    var name = nameInput.value.trim().slice(0, 10);
+    if (!name) { statusEl.textContent = 'ニックネームを入力してください'; return; }
+    try { localStorage.setItem(LB_NAME_KEY, name); } catch (e) {}
+    statusEl.textContent = '登録中...';
+    try {
+      var ref = lbDb.doc('scores/' + lbMyId);
+      var snap = await ref.get();
+      var prev = snap.exists ? snap.data() : null;
+      if (!prev || score > (prev.score || 0)) {
+        await ref.set({ name: name, score: score, ts: Date.now() });
+        statusEl.textContent = '登録しました!';
+      } else {
+        statusEl.textContent = '自己ベストを更新できませんでした(自己ベスト: ' + prev.score + ')';
+      }
+    } catch (e) {
+      statusEl.textContent = '登録に失敗しました';
+    }
+    refreshRanking();
+  }
+
+  document.getElementById('lbSubmitBtn').addEventListener('click', submitScoreToLeaderboard);
+  initLeaderboard();
 
   function startGame() {
     initGrid();

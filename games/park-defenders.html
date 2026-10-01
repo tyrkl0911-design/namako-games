@@ -1,5 +1,9 @@
 <title>まもれ!ぼくらの公園</title>
 <script src="/assets/track.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="leaderboard-firebase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yomogi&family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
 <style>
@@ -439,6 +443,15 @@
         <p id="overText">がんばったけど、今日は守りきれなかった。</p>
         <p class="hs">たどりついた日数: <b id="overDay">1</b> 日目</p>
         <p class="hs">これまでの最高記録: <b id="hsOver">まだなし</b></p>
+        <div class="lbSection" id="lbSectionOver" style="display:none; width:100%; max-width:300px; margin:0 auto 12px;">
+          <div style="font-size:12px; color:var(--ink); font-weight:700;">🏆 ランキング(上位10位)</div>
+          <div id="lbEntryOver" style="display:flex; gap:6px; margin-top:6px;">
+            <input id="lbNameOver" maxlength="10" placeholder="ニックネーム" style="flex:1; min-width:0; padding:7px; border-radius:7px; border:1px solid var(--path-edge); background:rgba(92,107,76,.06); color:var(--ink); font-family:inherit; font-size:12px;">
+            <button type="button" id="lbSubmitOver" class="bp-btn up" style="padding:7px 12px;">登録</button>
+          </div>
+          <div id="lbStatusOver" style="font-size:10.5px; color:var(--ink-soft); margin-top:3px; min-height:12px;"></div>
+          <div id="lbListOver" style="margin-top:5px; text-align:left; font-size:12px; max-height:130px; overflow-y:auto;"></div>
+        </div>
         <button class="cta" id="btnRetry">もう一度挑戦する ▸</button>
       </div>
     </div>
@@ -449,6 +462,15 @@
         <h2>公園は守られました</h2>
         <p>署名が集まり、マンション計画は中止に。みんなの公園は、これからもみんなの場所。</p>
         <p class="hs">木のがんばり残り: <b id="victoryMorale">0</b> / 20</p>
+        <div class="lbSection" id="lbSectionVictory" style="display:none; width:100%; max-width:300px; margin:0 auto 12px;">
+          <div style="font-size:12px; color:var(--ink); font-weight:700;">🏆 ランキング(上位10位)</div>
+          <div id="lbEntryVictory" style="display:flex; gap:6px; margin-top:6px;">
+            <input id="lbNameVictory" maxlength="10" placeholder="ニックネーム" style="flex:1; min-width:0; padding:7px; border-radius:7px; border:1px solid var(--path-edge); background:rgba(92,107,76,.06); color:var(--ink); font-family:inherit; font-size:12px;">
+            <button type="button" id="lbSubmitVictory" class="bp-btn up" style="padding:7px 12px;">登録</button>
+          </div>
+          <div id="lbStatusVictory" style="font-size:10.5px; color:var(--ink-soft); margin-top:3px; min-height:12px;"></div>
+          <div id="lbListVictory" style="margin-top:5px; text-align:left; font-size:12px; max-height:130px; overflow-y:auto;"></div>
+        </div>
         <button class="cta" id="btnVictoryRetry">もう一度遊ぶ ▸</button>
       </div>
     </div>
@@ -1424,6 +1446,9 @@
     setBest(Math.max(getBest(), TOTAL_MAPS*DAYS_PER_MAP));
     document.getElementById('victoryMorale').textContent = morale;
     showOverlay('victoryScreen', true);
+    lbFinalDays = TOTAL_MAPS*DAYS_PER_MAP;
+    showLeaderboardStatus(LB_CFG.victory);
+    refreshRanking(LB_CFG.victory);
   }
   function gameOver(){
     state='gameover';
@@ -1435,7 +1460,109 @@
     document.getElementById('overDay').textContent = MAPS[mapIndex].name+' Day'+day;
     document.getElementById('hsOver').textContent = shown>0 ? (shown+' / '+(TOTAL_MAPS*DAYS_PER_MAP)+'日 到達') : 'まだなし';
     showOverlay('gameOverScreen', true);
+    lbFinalDays = reached;
+    showLeaderboardStatus(LB_CFG.over);
+    refreshRanking(LB_CFG.over);
   }
+
+  // ---------- ランキング(共有データベース: Firebase Firestore。匿名ログインで誰でも自分の記録を登録可) ----------
+  // ランキング値は「たどりついた合計日数」(TOTAL_MAPS*DAYS_PER_MAP日で全クリア)。
+  var LB_NAME_KEY = 'parkDefendersNickname';
+  var lbDb = null, lbMyId = null, lbFinalDays = 0;
+  var LB_CFG = {
+    over: { entry:'lbEntryOver', name:'lbNameOver', submit:'lbSubmitOver', status:'lbStatusOver', list:'lbListOver' },
+    victory: { entry:'lbEntryVictory', name:'lbNameVictory', submit:'lbSubmitVictory', status:'lbStatusVictory', list:'lbListVictory' }
+  };
+
+  function escapeHtml(s){
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function showLeaderboardStatus(cfg){
+    var el = document.getElementById(cfg.status);
+    if (el) el.textContent = (lbDb && !lbMyId) ? '登録にはサインインが必要です(閲覧のみ可能)' : '';
+  }
+
+  // lbSectionOver/lbSectionVictory の表示・非表示は、victory()/gameOver()の
+  // 呼ばれるタイミングに関わらずここ(初期化の解決後)で一元的に決める。
+  // これにより、万が一victory()/gameOver()が初期化完了より先に呼ばれても、
+  // 後から解決した時点で正しく表示が反映される(表示が永久に欠落しない)。
+  function initLeaderboard(){
+    lbDb = window.NamakoLB ? window.NamakoLB('parkDefenders') : null;
+    (lbDb ? lbDb.myId() : Promise.resolve(null)).then(function(id){
+      lbMyId = id;
+      ['lbSectionOver', 'lbSectionVictory'].forEach(function(sectionId){
+        var section = document.getElementById(sectionId);
+        if (section) section.style.display = lbDb ? 'block' : 'none';
+      });
+      if (lbDb){
+        var savedName = '';
+        try{ savedName = localStorage.getItem(LB_NAME_KEY) || ''; }catch(e){}
+        [LB_CFG.over, LB_CFG.victory].forEach(function(cfg){
+          if (lbMyId){
+            document.getElementById(cfg.name).value = savedName;
+          } else {
+            document.getElementById(cfg.entry).style.display = 'none';
+          }
+        });
+      }
+    }).catch(function(){});
+  }
+
+  function refreshRanking(cfg){
+    var listEl = document.getElementById(cfg.list);
+    if (!lbDb || !listEl) return;
+    lbDb.collection('scores').orderBy('score', 'desc').limit(10).get().then(function(snap){
+      if (snap.empty){
+        listEl.innerHTML = '<div style="color:var(--ink-soft);">まだ登録がありません</div>';
+        return;
+      }
+      var html = '';
+      snap.docs.forEach(function(d, i){
+        var data = d.data() || {};
+        var name = data.name || '名無し';
+        var sc = data.score || 0;
+        var mine = d.id === lbMyId;
+        html += '<div style="display:flex; justify-content:space-between; padding:2px 0;' + (mine ? ' color:var(--caution-ink); font-weight:700;' : '') + '">' +
+          '<span>' + (i+1) + '位 ' + escapeHtml(name) + '</span><span>' + sc + '日</span></div>';
+      });
+      listEl.innerHTML = html;
+    }).catch(function(){
+      listEl.innerHTML = '<div style="color:var(--brick);">ランキング取得に失敗しました</div>';
+    });
+  }
+
+  function submitScoreToLeaderboard(cfg){
+    var statusEl = document.getElementById(cfg.status);
+    if (!lbDb || !lbMyId){ statusEl.textContent = '登録にはサインインが必要です'; return; }
+    var nameInput = document.getElementById(cfg.name);
+    var name = nameInput.value.trim().slice(0, 10);
+    if (!name){ statusEl.textContent = 'ニックネームを入力してください'; return; }
+    try{ localStorage.setItem(LB_NAME_KEY, name); }catch(e){}
+    statusEl.textContent = '登録中...';
+    var finalDaysVal = lbFinalDays;
+    var ref = lbDb.doc('scores/' + lbMyId);
+    ref.get().then(function(snap){
+      var prev = snap.exists ? snap.data() : null;
+      if (!prev || finalDaysVal > (prev.score || 0)){
+        return ref.set({ name: name, score: finalDaysVal, ts: Date.now() }).then(function(){
+          statusEl.textContent = '登録しました!';
+        });
+      } else {
+        statusEl.textContent = '自己ベストを更新できませんでした(自己ベスト: ' + prev.score + '日)';
+      }
+    }).catch(function(){
+      statusEl.textContent = '登録に失敗しました';
+    }).then(function(){
+      refreshRanking(cfg);
+    });
+  }
+
+  document.getElementById('lbSubmitOver').addEventListener('click', function(){ submitScoreToLeaderboard(LB_CFG.over); });
+  document.getElementById('lbSubmitVictory').addEventListener('click', function(){ submitScoreToLeaderboard(LB_CFG.victory); });
+  initLeaderboard();
 
   function spawnFloatingText(x,y,text,color){
     floatingTexts.push({x:x,y:y,text:text,age:0,life:0.9,vy:-38,color:color});
