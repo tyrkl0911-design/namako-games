@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <title>ウォーターミックス</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <script src="/assets/track.js" defer></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -917,13 +917,7 @@
     if(el.pauseOverlay.hidden) openPause(); else closePause();
   }
   function pauseGoToTitle(){
-    el.pauseOverlay.hidden = true;
-    bgm.pause();
-    el.gameView.hidden = true;
-    el.stageSelectView.hidden = false;
-    el.mainView.hidden = true;
-    el.titleView.hidden = false;
-    document.querySelectorAll('.side-art').forEach(elm => elm.classList.add('title-active'));
+    window.location.href = 'puzzle-select.html';
   }
   document.getElementById('pauseBtn').addEventListener('click', togglePause);
   document.getElementById('resumePauseBtn').addEventListener('click', closePause);

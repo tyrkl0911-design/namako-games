@@ -1,6 +1,6 @@
 <title>アーマードナイト</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="/assets/track.js" defer></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -314,6 +314,8 @@
         </div>
         <div class="overlay" id="pauseOverlay" hidden>
           <h2>PAUSE</h2>
+          <button class="btn" id="resumeBtn">再開する</button>
+          <button class="btn" id="pauseTitleBtn">タイトルへ戻る</button>
           <p>
             矢印キー/仮想パッド/コントローラーで移動・ジャンプ(空中でもう一度ジャンプ可能な2段ジャンプ)、Z・攻撃ボタンで武器を投げる。<br>
             鎧が脱げたらもう1発で死亡。<br>
@@ -322,8 +324,6 @@
             PC: ←→移動 / X or ↑ ジャンプ(2段可) / Z 攻撃 / P ポーズ<br>
             コントローラー: 十字キー移動・A ジャンプ(2段可)・X or B 攻撃・Start ポーズ/決定
           </p>
-          <button class="btn" id="resumeBtn">再開する</button>
-          <button class="btn" id="pauseTitleBtn">タイトルへ戻る</button>
         </div>
       </div>
     </div>
@@ -414,11 +414,7 @@
   document.getElementById('pauseBtn').addEventListener('click', ()=>{ ensureAudio(); togglePause(); });
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
   document.getElementById('pauseTitleBtn').addEventListener('click', ()=>{
-    pauseOverlay.hidden = true;
-    stopBgm();
-    fullReset();
-    state = 'title';
-    document.getElementById('titleOverlay').hidden = false;
+    window.location.href = 'action-select.html';
   });
 
   const muteBtn = document.getElementById('muteBtn');
