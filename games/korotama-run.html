@@ -85,15 +85,6 @@
     display: block;
     background: #7ec9e8;
   }
-  #hint {
-    position: absolute; left: 0; right: 0; bottom: 10%;
-    text-align: center; font-size: 13px; color: #fff;
-    text-shadow: 1px 1px 2px #000;
-    pointer-events: none;
-    animation: blink 1.2s infinite;
-  }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-
   .overlay {
     position: absolute; inset: 0;
     background: rgba(10,16,24,.86);
@@ -136,7 +127,6 @@
 
   <div id="stage">
     <canvas id="cv" width="960" height="540"></canvas>
-    <div id="hint">タップ / クリック / スペースキー / コントローラーのボタンで ジャンプ!(空中でもう一度押すと2段ジャンプ)</div>
 
     <div class="overlay" id="startOverlay">
       <h2>🥚 コロタマ走 🦅</h2>
@@ -150,6 +140,7 @@
 
     <div class="overlay" id="pauseOverlay" hidden>
       <h2>⏸ 一時停止中</h2>
+      <p>操作: タップ / クリック / スペースキー / コントローラーのボタンで ジャンプ(空中でもう一度押すと2段ジャンプ)</p>
       <div class="btnRow">
         <button class="gbtn" id="resumeBtn">▶ 再開</button>
         <button class="gbtn" id="pauseTitleBtn">🏠 タイトルへ</button>
