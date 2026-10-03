@@ -427,7 +427,10 @@
   window.addEventListener('keydown', (e)=>{
     if (e.code === 'Space'){ e.preventDefault(); jump(); }
   });
-  document.getElementById('stage').addEventListener('pointerdown', (e)=>{
+  // タップ判定は#stage(ゲーム画面)だけでなく#app全体(スマホ縦画面などでゲーム画面の下に余る空欄部分も含む)に広げる。
+  // ただしボタン・入力欄の上は誤ジャンプさせないよう除外する。
+  document.getElementById('app').addEventListener('pointerdown', (e)=>{
+    if (e.target.closest('button, input, a')) return;
     e.preventDefault();
     if (!running){ return; }
     jump();
