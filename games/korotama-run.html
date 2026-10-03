@@ -37,7 +37,7 @@
     text-shadow: 2px 2px 0 #ff8a3d, 4px 4px 0 #14202e;
   }
   #titleRow { display: flex; align-items: center; gap: 10px; }
-  #muteBtn, #pauseBtn {
+  #muteBtn, #pauseBtn, #skillBtn {
     background: #1e2f42;
     border: 2px solid #3a5a78;
     border-radius: 6px;
@@ -47,6 +47,19 @@
     height: 34px;
     cursor: pointer;
     line-height: 1;
+  }
+  #skillBtn { opacity: .4; cursor: default; }
+  #skillBtn.charged {
+    opacity: 1;
+    cursor: pointer;
+    border-color: #ffe066;
+    background: #3a2f10;
+    box-shadow: 0 0 8px #ffe066;
+    animation: skillPulse 1s infinite;
+  }
+  @keyframes skillPulse {
+    0%, 100% { box-shadow: 0 0 4px #ffe066; }
+    50% { box-shadow: 0 0 12px #ffe066; }
   }
   #hud {
     display: flex;
@@ -111,6 +124,7 @@
     <h1>コロタマ走</h1>
     <button id="muteBtn" title="ミュート">🔊</button>
     <button id="pauseBtn" title="一時停止">⏸</button>
+    <button id="skillBtn" title="スキル(進化時に1回だけ使える大ジャンプ)" disabled>🔒</button>
   </div>
 
   <div id="hud">
@@ -134,13 +148,14 @@
       <p>集めるほど大きく育ち、やがて孵化して…巨大な鳥に!?</p>
       <p>段差のあるバーを飛び上がったり飛び下りたりしながら進む。落ちたら即終了の「穴」に注意!</p>
       <p>ゴールはなし。進むほどどんどん難しくなるエンドレスモード。どこまで走れるかチャレンジ!</p>
-      <p>操作は1つだけ:タップ/クリック/スペースキー/コントローラーのいずれかのボタンで ジャンプ(空中でもう一度押すと2段ジャンプ)</p>
+      <p>基本操作はジャンプ1つだけ:タップ/クリック/スペースキー/コントローラーのいずれかのボタンで ジャンプ(空中でもう一度押すと2段ジャンプ)</p>
+      <p>⚡ 進化で解禁される追加操作:進化するたびに「スキル」が1個(最大1個まで)チャージされる。画面上部の⚡ボタンをタップすると大ジャンプで発動!</p>
       <div class="btnRow"><button class="gbtn" id="startBtn">▶ スタート</button></div>
     </div>
 
     <div class="overlay" id="pauseOverlay" hidden>
       <h2>⏸ 一時停止中</h2>
-      <p>操作: タップ / クリック / スペースキー / コントローラーのボタンで ジャンプ(空中でもう一度押すと2段ジャンプ)</p>
+      <p>操作: タップ / クリック / スペースキー / コントローラーのボタンで ジャンプ(空中でもう一度押すと2段ジャンプ)。⚡チャージ中は画面上部の⚡ボタンで大ジャンプ発動。</p>
       <div class="btnRow">
         <button class="gbtn" id="resumeBtn">▶ 再開</button>
         <button class="gbtn" id="pauseTitleBtn">🏠 タイトルへ</button>
@@ -185,6 +200,7 @@
   const RAMP2_DIST = 1500; // m。RAMP_DIST以降、ここまでの間にさらに難易度が上乗せされる
   const RAMP3_SCALE = 1500; // m。RAMP2_DIST以降も、なめらかに(漸近的に)上がり続ける減衰の目安距離。頭打ちせず、その先もずっと難易度が上がっていく(ゴールなしのエンドレス)
   const JUMP_VY = -300;
+  const SKILL_JUMP_VY = -460; // スキル「大ジャンプ」:通常ジャンプより大幅に高く飛ぶ(進化時に1回だけチャージされる)
   const GRAVITY = 900;
   const MAX_JUMPS = 2; // 2段ジャンプ
   const LANDING_OVERSHOOT_LIMIT = 20; // px。着地時にこれ以上沈み込んでいたら「崖(穴の側面)に激突」として死亡させる
@@ -241,6 +257,8 @@
   const sfxCoin  = () => beep(880, 0.08, 'square', 0.10, 1200);
   const sfxHit   = () => beep(140, 0.30, 'sawtooth', 0.18, 60);
   const sfxEvolve= () => { beep(660,0.10,'triangle',0.16,880); setTimeout(()=>beep(990,0.16,'triangle',0.16,1320),100); };
+  const sfxSkillReady = () => { beep(500,0.08,'sine',0.14,900); setTimeout(()=>beep(900,0.12,'sine',0.14,1400),80); };
+  const sfxSkillUse   = () => beep(220,0.22,'sawtooth',0.18,900);
 
   function unlockAudio(){
     if (audioUnlocked) return;
@@ -268,6 +286,7 @@
   // ---- Game state ----
   let running = false, paused = false, over = false;
   let distance = 0, coins = 0, stage = 0;
+  let hasSkill = false; // 進化時に1回だけチャージされる「大ジャンプ」スキル
   function loadBest(){ try{ return Number(localStorage.getItem('korotama_best') || 0) || 0; }catch(e){ return 0; } }
   function saveBest(v){ try{ localStorage.setItem('korotama_best', v); }catch(e){} }
   let best = loadBest();
@@ -294,7 +313,28 @@
     fallReason = null;
     player = { x: PLAYER_X, y: BASE_GROUND_Y, vy: 0, onGround: true, invuln: 0, jumpsUsed: 0, lastGroundY: BASE_GROUND_Y, wasOverNothing: false };
     over = false;
+    hasSkill = false;
+    updateSkillBtn();
   }
+
+  function updateSkillBtn(){
+    const btn = document.getElementById('skillBtn');
+    btn.disabled = !hasSkill;
+    btn.textContent = hasSkill ? '⚡' : '🔒';
+    btn.classList.toggle('charged', hasSkill);
+  }
+
+  function useSkill(){
+    if (!running || paused || over || !hasSkill) return;
+    hasSkill = false;
+    updateSkillBtn();
+    player.vy = SKILL_JUMP_VY;
+    player.onGround = false;
+    player.jumpsUsed = 1; // 大ジャンプ後も通常の2段ジャンプ分の1段を残す
+    sfxSkillUse();
+    for (let i=0;i<10;i++) particles.push(mkParticle(player.x, player.y, '⚡'));
+  }
+  document.getElementById('skillBtn').addEventListener('click', useSkill);
 
   function speedNow(){
     const t1 = Math.min(distance / RAMP_DIST, 1);
@@ -315,6 +355,11 @@
       shake = 6;
       player.invuln = Math.max(player.invuln, 0.8);
       for (let i=0;i<14;i++) particles.push(mkParticle(player.x, player.y-20, '✨'));
+      if (!hasSkill){
+        hasSkill = true;
+        updateSkillBtn();
+        setTimeout(sfxSkillReady, 250);
+      }
     }
   }
 
