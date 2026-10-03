@@ -164,21 +164,21 @@
   .cell.preview-ok { outline: 2px solid #69f0ae; outline-offset: -2px; }
   .cell.preview-bad { outline: 2px solid #ff5252; outline-offset: -2px; }
   .cell.clear-glow {
-    box-shadow: 0 0 6px 2px rgba(255,215,64,0.6), inset 0 0 8px rgba(255,255,255,0.45);
-    animation: clearGlowPulse 0.5s ease-in-out infinite alternate;
+    box-shadow: 0 0 8px 3px rgba(255,215,64,0.75), inset 0 0 8px rgba(255,255,255,0.5);
+    animation: clearGlowPulse 0.35s ease-out infinite alternate;
   }
   @keyframes clearGlowPulse {
-    from { box-shadow: 0 0 4px 1px rgba(255,215,64,0.35), inset 0 0 4px rgba(255,255,255,0.25); }
-    to   { box-shadow: 0 0 10px 4px rgba(255,215,64,0.85), inset 0 0 10px rgba(255,255,255,0.55); }
+    from { box-shadow: 0 0 8px 3px rgba(255,215,64,0.75), inset 0 0 8px rgba(255,255,255,0.5); }
+    to   { box-shadow: 0 0 13px 5px rgba(255,215,64,1), inset 0 0 12px rgba(255,255,255,0.7); }
   }
   .cell.target-mode { outline: 2px dashed #ffd740; outline-offset: -2px; }
   .cell.pad-cursor { box-shadow: 0 0 0 3px #fff, 0 0 10px 2px #ffd740; z-index: 2; }
   .cell.pad-cursor.clear-glow {
-    animation: clearGlowPulsePad 0.5s ease-in-out infinite alternate;
+    animation: clearGlowPulsePad 0.35s ease-out infinite alternate;
   }
   @keyframes clearGlowPulsePad {
-    from { box-shadow: 0 0 0 3px #fff, 0 0 6px 1px rgba(255,215,64,0.5); }
-    to   { box-shadow: 0 0 0 3px #fff, 0 0 12px 4px rgba(255,215,64,0.9); }
+    from { box-shadow: 0 0 0 3px #fff, 0 0 8px 2px rgba(255,215,64,0.75); }
+    to   { box-shadow: 0 0 0 3px #fff, 0 0 13px 5px rgba(255,215,64,1); }
   }
   .piece-slot.pad-selected { box-shadow: 0 0 0 3px #ffd740; background: rgba(255,215,64,0.15); }
   .cell.crack::after {
