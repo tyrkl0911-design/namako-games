@@ -163,8 +163,23 @@
   }
   .cell.preview-ok { outline: 2px solid #69f0ae; outline-offset: -2px; }
   .cell.preview-bad { outline: 2px solid #ff5252; outline-offset: -2px; }
+  .cell.clear-glow {
+    box-shadow: 0 0 6px 2px rgba(255,215,64,0.6), inset 0 0 8px rgba(255,255,255,0.45);
+    animation: clearGlowPulse 0.5s ease-in-out infinite alternate;
+  }
+  @keyframes clearGlowPulse {
+    from { box-shadow: 0 0 4px 1px rgba(255,215,64,0.35), inset 0 0 4px rgba(255,255,255,0.25); }
+    to   { box-shadow: 0 0 10px 4px rgba(255,215,64,0.85), inset 0 0 10px rgba(255,255,255,0.55); }
+  }
   .cell.target-mode { outline: 2px dashed #ffd740; outline-offset: -2px; }
   .cell.pad-cursor { box-shadow: 0 0 0 3px #fff, 0 0 10px 2px #ffd740; z-index: 2; }
+  .cell.pad-cursor.clear-glow {
+    animation: clearGlowPulsePad 0.5s ease-in-out infinite alternate;
+  }
+  @keyframes clearGlowPulsePad {
+    from { box-shadow: 0 0 0 3px #fff, 0 0 6px 1px rgba(255,215,64,0.5); }
+    to   { box-shadow: 0 0 0 3px #fff, 0 0 12px 4px rgba(255,215,64,0.9); }
+  }
   .piece-slot.pad-selected { box-shadow: 0 0 0 3px #ffd740; background: rgba(255,215,64,0.15); }
   .cell.crack::after {
     content: '';
@@ -829,7 +844,7 @@
 
   function clearPreview() {
     for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) {
-      cellEls[r][c].classList.remove('preview-ok', 'preview-bad');
+      cellEls[r][c].classList.remove('preview-ok', 'preview-bad', 'clear-glow');
     }
   }
 
@@ -849,6 +864,7 @@
         cellEls[rr][cc].classList.add(ok ? 'preview-ok' : 'preview-bad');
       }
     });
+    if (ok) applyClearGlow(computeClearGlowCells(dragState.piece, row, col));
   }
 
   function onDragMove(ev) {
@@ -892,6 +908,49 @@
       if (grid[rr][cc] !== null) return false;
     }
     return true;
+  }
+
+  // そのピースを row,col に置いたと仮定した場合に完成する行・列のマスを全て集める(配置確定前のプレビュー表示専用)。
+  // 氷(hp>1のまま)やロックを含む行/列は、埋まっても1回の消去では残ってしまうため光らせる対象から外す。
+  function computeClearGlowCells(piece, row, col) {
+    var pieceMap = {};
+    piece.cells.forEach(function(cd) {
+      pieceMap[(row + cd.r) + '_' + (col + cd.c)] = cd;
+    });
+    function occupied(r, c) {
+      return pieceMap[r + '_' + c] !== undefined || grid[r][c] !== null;
+    }
+    function clearable(r, c) {
+      var pcd = pieceMap[r + '_' + c];
+      if (pcd) return pcd.special !== 'lock' && pcd.special !== 'ice';
+      var cell = grid[r][c];
+      return !cell.locked && !(cell.type === 'ice' && cell.hp > 1);
+    }
+    var glowKeys = {};
+    var r, c;
+    for (r = 0; r < SIZE; r++) {
+      var rowFull = true, rowClearable = true;
+      for (c = 0; c < SIZE; c++) {
+        if (!occupied(r, c)) { rowFull = false; break; }
+        if (!clearable(r, c)) rowClearable = false;
+      }
+      if (rowFull && rowClearable) for (c = 0; c < SIZE; c++) glowKeys[r + '_' + c] = true;
+    }
+    for (c = 0; c < SIZE; c++) {
+      var colFull = true, colClearable = true;
+      for (r = 0; r < SIZE; r++) {
+        if (!occupied(r, c)) { colFull = false; break; }
+        if (!clearable(r, c)) colClearable = false;
+      }
+      if (colFull && colClearable) for (r = 0; r < SIZE; r++) glowKeys[r + '_' + c] = true;
+    }
+    return glowKeys;
+  }
+
+  function applyClearGlow(glowKeys) {
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) {
+      if (glowKeys[r + '_' + c]) cellEls[r][c].classList.add('clear-glow');
+    }
   }
 
   function anyPlacementPossible(piece) {
@@ -1219,6 +1278,7 @@
           cellEls[rr][cc].classList.add(ok ? 'preview-ok' : 'preview-bad');
         }
       });
+      if (ok) applyClearGlow(computeClearGlowCells(piece, padCursor.r, padCursor.c));
     }
     cellEls[padCursor.r][padCursor.c].classList.add('pad-cursor');
   }
