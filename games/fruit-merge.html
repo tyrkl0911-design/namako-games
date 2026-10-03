@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <title>まんまるコイン</title>
 <script src="/assets/track.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="leaderboard-firebase.js"></script>
 <link rel="manifest" href="manifest-coin.json">
 <meta name="theme-color" content="#ff7a59">
 <link rel="apple-touch-icon" href="icons/coin-192.png">
@@ -42,6 +46,15 @@
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="lbSection" style="display:none; width:100%; max-width:648px; box-sizing:border-box; padding:14px 18px 0; font-family: -apple-system, 'Hiragino Maru Gothic ProN', sans-serif;">
+  <div style="font-size:13px; color:#8a5a20; font-weight:bold; text-align:center;">🏆 ランキング(上位10位)</div>
+  <div id="lbEntry" style="display:flex; gap:6px; margin-top:8px;">
+    <input id="lbNameInput" maxlength="10" placeholder="ニックネーム" style="flex:1; min-width:0; padding:8px; border-radius:6px; border:1px solid rgba(122,74,26,0.3); background:#fffaf0; color:#4a3010; font-family:inherit; font-size:13px;">
+    <button id="lbSubmitBtn" style="padding:8px 14px; border-radius:6px; border:none; background:linear-gradient(90deg,#ffb347,#ff7a59); color:#fff; font-weight:bold; cursor:pointer; font-family:inherit; font-size:13px;">登録</button>
+  </div>
+  <div id="lbStatus" style="font-size:11px; color:#8a5a20; margin-top:4px; min-height:14px; text-align:center;"></div>
+  <div id="lbList" style="margin-top:6px; text-align:left; font-size:13px; max-height:180px; overflow-y:auto;"></div>
+</div>
 <div class="goal-progress">
   <div class="goal-label" id="goalLabel">目標 ¥200,000 まで あと ¥200,000</div>
   <div class="goal-track"><div class="goal-fill" id="goalFill"></div></div>
@@ -263,7 +276,97 @@
     bgm.pause();
     playSfx(sfxMerge, 1.4);
     overTitleText = 'GAME CLEAR!';
+    showLeaderboardOnGameOver();
   }
+
+  // ---- 金額ランキング(共有データベース: Firebase Firestore。匿名ログインで誰でも自分の記録を登録可) ----
+  var LB_NAME_KEY = 'fruitMergeNickname';
+  var lbDb = null, lbMyId = null;
+
+  function escapeHtml(s){
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function showLeaderboardStatus(){
+    var statusEl = document.getElementById('lbStatus');
+    if(statusEl) statusEl.textContent = (lbDb && !lbMyId) ? '登録にはサインインが必要です(閲覧のみ可能)' : '';
+  }
+
+  function initLeaderboard(){
+    try{
+      lbDb = window.NamakoLB ? window.NamakoLB('fruitMerge') : null;
+    }catch(e){}
+    if(lbDb){
+      lbDb.myId().then(function(uid){
+        lbMyId = uid;
+        var savedName = '';
+        try{ savedName = localStorage.getItem(LB_NAME_KEY) || ''; }catch(e){}
+        if(lbMyId){
+          document.getElementById('lbNameInput').value = savedName;
+        }else{
+          document.getElementById('lbEntry').style.display = 'none';
+        }
+      });
+    }
+  }
+
+  function refreshRanking(){
+    var listEl = document.getElementById('lbList');
+    if(!lbDb || !listEl) return;
+    lbDb.collection('scores').orderBy('score', 'desc').limit(10).get().then(function(snap){
+      if(snap.empty){
+        listEl.innerHTML = '<div style="color:#8a5a20;">まだ登録がありません</div>';
+        return;
+      }
+      var html = '';
+      snap.docs.forEach(function(d, i){
+        var data = d.data() || {};
+        var name = data.name || '名無し';
+        var sc = data.score || 0;
+        var mine = d.id === lbMyId;
+        html += '<div style="display:flex; justify-content:space-between; padding:2px 0;' + (mine ? ' color:#ff7a59; font-weight:bold;' : '') + '">' +
+          '<span>' + (i + 1) + '位 ' + escapeHtml(name) + '</span><span>' + formatYen(sc) + '</span></div>';
+      });
+      listEl.innerHTML = html;
+    }).catch(function(){
+      listEl.innerHTML = '<div style="color:#c0392b;">ランキング取得に失敗しました</div>';
+    });
+  }
+
+  function submitScoreToLeaderboard(){
+    var statusEl = document.getElementById('lbStatus');
+    if(!lbDb || !lbMyId){ statusEl.textContent = '登録にはサインインが必要です'; return; }
+    var nameInput = document.getElementById('lbNameInput');
+    var name = nameInput.value.trim().slice(0, 10);
+    if(!name){ statusEl.textContent = 'ニックネームを入力してください'; return; }
+    try{ localStorage.setItem(LB_NAME_KEY, name); }catch(e){}
+    statusEl.textContent = '登録中...';
+    var finalScore = score;
+    var ref = lbDb.doc('scores/' + lbMyId);
+    ref.get().then(function(snap){
+      var prev = snap.exists ? snap.data() : null;
+      if(!prev || finalScore > (prev.score || 0)){
+        return ref.set({ name: name, score: finalScore, ts: Date.now() }).then(function(){
+          statusEl.textContent = '登録しました!';
+        });
+      }else{
+        statusEl.textContent = '自己ベストを更新できませんでした(自己ベスト: ' + formatYen(prev.score) + ')';
+      }
+    }).catch(function(){
+      statusEl.textContent = '登録に失敗しました';
+    }).then(refreshRanking);
+  }
+
+  function showLeaderboardOnGameOver(){
+    document.getElementById('lbSection').style.display = lbDb ? 'block' : 'none';
+    showLeaderboardStatus();
+    refreshRanking();
+  }
+
+  document.getElementById('lbSubmitBtn').addEventListener('click', submitScoreToLeaderboard);
+  initLeaderboard();
 
   var pops = [];
   function spawnPop(x,y,color){
@@ -305,6 +408,7 @@
     Events.off(engine, 'collisionStart', onCollision);
     setup();
     physicsAccumulator = 0;
+    document.getElementById('lbSection').style.display = 'none';
     if(!muted) bgm.play().catch(function(){});
   }
 
@@ -476,6 +580,7 @@
       bgm.pause();
       playSfx(sfxOver);
       overTitleText = 'GAME OVER';
+      showLeaderboardOnGameOver();
     }
   }
 
