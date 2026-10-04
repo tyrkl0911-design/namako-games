@@ -144,9 +144,11 @@
     animation: clearBurst 0.5s ease-out forwards;
   }
   @keyframes clearBurst {
-    0% { transform: scale(1) rotate(0deg); opacity: 1; filter: brightness(1) saturate(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
-    35% { transform: scale(1.35) rotate(8deg); opacity: 1; filter: brightness(2.4) saturate(1.6); box-shadow: 0 0 16px 6px currentColor; }
-    100% { transform: scale(0.2) rotate(20deg); opacity: 0; filter: brightness(2) saturate(1.6); box-shadow: 0 0 4px 2px currentColor; }
+    /* box-shadow(ぼかし)は毎フレーム再ペイントが必要で重く、消去マス数が多い瞬間(全消し等、最大64個同時)に
+       体感ラグの原因になっていたため削除。filterはGPU合成されやすく軽いので光る演出として残す。 */
+    0% { transform: scale(1) rotate(0deg); opacity: 1; filter: brightness(1) saturate(1); }
+    35% { transform: scale(1.35) rotate(8deg); opacity: 1; filter: brightness(2.4) saturate(1.6); }
+    100% { transform: scale(0.2) rotate(20deg); opacity: 0; filter: brightness(2) saturate(1.6); }
   }
   .cell {
     background: #22223a;
@@ -163,13 +165,16 @@
   }
   .cell.preview-ok { outline: 2px solid #69f0ae; outline-offset: -2px; }
   .cell.preview-bad { outline: 2px solid #ff5252; outline-offset: -2px; }
+  /* clear-glowはドラッグ中(配置を迷っている間)ずっとinfiniteで回り続けるため、
+     box-shadowの値そのものをアニメーションさせると毎フレーム再ペイントが発生し続けて重い。
+     box-shadowは静的な値のまま(初回のみペイント)にし、明滅はfilter(GPU合成されやすく軽い)で行う。 */
   .cell.clear-glow {
     box-shadow: 0 0 8px 3px rgba(255,215,64,0.75), inset 0 0 8px rgba(255,255,255,0.5);
     animation: clearGlowPulse 0.35s ease-out infinite alternate;
   }
   @keyframes clearGlowPulse {
-    from { box-shadow: 0 0 8px 3px rgba(255,215,64,0.75), inset 0 0 8px rgba(255,255,255,0.5); }
-    to   { box-shadow: 0 0 13px 5px rgba(255,215,64,1), inset 0 0 12px rgba(255,255,255,0.7); }
+    from { filter: brightness(1); }
+    to   { filter: brightness(1.4); }
   }
   .cell.target-mode { outline: 2px dashed #ffd740; outline-offset: -2px; }
   .cell.pad-cursor { box-shadow: 0 0 0 3px #fff, 0 0 10px 2px #ffd740; z-index: 2; }
@@ -177,8 +182,8 @@
     animation: clearGlowPulsePad 0.35s ease-out infinite alternate;
   }
   @keyframes clearGlowPulsePad {
-    from { box-shadow: 0 0 0 3px #fff, 0 0 8px 2px rgba(255,215,64,0.75); }
-    to   { box-shadow: 0 0 0 3px #fff, 0 0 13px 5px rgba(255,215,64,1); }
+    from { filter: brightness(1); }
+    to   { filter: brightness(1.4); }
   }
   .piece-slot.pad-selected { box-shadow: 0 0 0 3px #ffd740; background: rgba(255,215,64,0.15); }
   .cell.crack::after {
