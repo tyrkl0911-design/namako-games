@@ -473,12 +473,15 @@
   ];
 
   // 大きいブロックほど手札に出やすくする(全消しを狙いやすくするための重み付け)。
-  // マス数が多いほど一度に複数ラインを消しやすく、盤面を空にしやすい。
+  // ただし9マスの3x3は終盤の狭い盤面にはまず置けず、優遇しすぎるとゲームオーバーが増えてしまうため
+  // 5〜8マス帯よりむしろ低めに抑える。1〜2マスの「置き場所に困らない」ピースもやや増やし、
+  // 大きいブロックで手詰まりになった時の逃げ道を確保する。
   var SHAPE_WEIGHTS = SHAPES.map(function(s) {
     var n = s.length;
-    if (n <= 2) return 2;
+    if (n <= 2) return 3;
     if (n <= 4) return 3;
-    return 4; // 5マス以上(3x3含む)
+    if (n <= 8) return 4; // 5〜8マス: 全消しを狙いやすくする本命サイズ
+    return 2; // 9マス(3x3)だけは置きにくさを考慮して控えめに
   });
   var SHAPE_WEIGHT_TOTAL = SHAPE_WEIGHTS.reduce(function(a, b) { return a + b; }, 0);
   function pickWeightedShapeIndex() {
@@ -563,7 +566,9 @@
   // 再生のたびにcloneNodeで<audio>を増やし続けると、同時に生存できる音声要素数に
   // 上限があるブラウザ(特にiOS Safari)で上限を超えた時点から無音で再生失敗し続ける。
   // そのため要素を使い捨てず、キーごとに固定数を使い回すプール方式にしている。
-  var SFX_POOL_SIZE = 4;
+  // 大きいブロックで連続コンボが起きやすくなり、短時間に同じ効果音が重なる場面が増えたため、
+  // プールが足りず使い回し中(pause直後のplay)の衝突で無音になるのを避けるべく4→6に増量。
+  var SFX_POOL_SIZE = 6;
   var sfxPool = {};
   Object.keys(SFX_FILES).forEach(function(key) {
     var nodes = [];
