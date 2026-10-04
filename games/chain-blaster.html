@@ -599,22 +599,24 @@
   }
 
   function playClearSound(comboCount) {
-    // layered for a punchier "flashy" clear: hit + chime immediately, shimmer tail just after.
+    // layered for a punchier "flashy" clear: hit + chime + shimmer, all fired together.
     // most runs only reach a 2-3 combo, so the escalation is front-loaded to peak by combo 3
     // rather than spread out to 8, on top of the fixed milestone fanfare at 3/5/8.
+    // setTimeoutで遅らせて鳴らしていたが、モバイルブラウザではタイマー経由のplay()がユーザー操作の
+    // コンテキストを外れたと見なされ、不定期に再生ブロックされることがあったため全て同期的に鳴らす。
     var c = Math.max(1, comboCount || 1);
     var rate = Math.min(1 + (c - 1) * 0.12, 1.4);
     var boost = Math.min((c - 1) * 0.08, 0.22);
     playClip('clearHit', Math.min(0.7 + boost, 0.98), rate);
     playClip('clear', Math.min(0.55 + boost, 0.85), rate);
-    setTimeout(function () { playClip('clearSparkle', Math.min(0.5 + boost, 0.8), rate); }, 70);
+    playClip('clearSparkle', Math.min(0.5 + boost, 0.8), rate);
     if (c >= 2) {
       // extra echoing punch from combo 2 onward
-      setTimeout(function () { playClip('clearHit', 0.55, Math.min(rate + 0.1, 1.5)); }, 45);
+      playClip('clearHit', 0.55, Math.min(rate + 0.1, 1.5));
     }
     if (c >= 3) {
       // extra sparkle burst on top from combo 3 onward, since that's the realistic ceiling
-      setTimeout(function () { playClip('clearSparkle', 0.6, Math.min(rate + 0.15, 1.6)); }, 110);
+      playClip('clearSparkle', 0.6, Math.min(rate + 0.15, 1.6));
     }
   }
 
