@@ -535,19 +535,30 @@
     gameover: '効果音/chain-blaster-freesound/gameover.mp3',
     record: '効果音/chain-blaster-freesound/record.mp3'
   };
+  // 再生のたびにcloneNodeで<audio>を増やし続けると、同時に生存できる音声要素数に
+  // 上限があるブラウザ(特にiOS Safari)で上限を超えた時点から無音で再生失敗し続ける。
+  // そのため要素を使い捨てず、キーごとに固定数を使い回すプール方式にしている。
+  var SFX_POOL_SIZE = 4;
   var sfxPool = {};
   Object.keys(SFX_FILES).forEach(function(key) {
-    var a = new Audio(SFX_FILES[key]);
-    a.preload = 'auto';
-    sfxPool[key] = a;
+    var nodes = [];
+    for (var i = 0; i < SFX_POOL_SIZE; i++) {
+      var a = new Audio(SFX_FILES[key]);
+      a.preload = 'auto';
+      nodes.push(a);
+    }
+    sfxPool[key] = { nodes: nodes, idx: 0 };
   });
 
-  // clone the preloaded element so overlapping SFX (e.g. rapid placements) don't cut each other off
+  // プール内を順番に使い回すことで、重なって鳴る効果音(連続配置など)も途切れさせない
   function playClip(key, volume, rate) {
     if (muted) return;
-    var base = sfxPool[key];
-    if (!base) return;
-    var node = base.cloneNode();
+    var pool = sfxPool[key];
+    if (!pool) return;
+    var node = pool.nodes[pool.idx];
+    pool.idx = (pool.idx + 1) % pool.nodes.length;
+    node.pause();
+    node.currentTime = 0;
     node.volume = volume !== undefined ? volume : 0.6;
     node.playbackRate = rate || 1;
     node.play().catch(function () {});
