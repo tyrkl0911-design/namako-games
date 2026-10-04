@@ -467,6 +467,24 @@
     [[0,0],[0,1],[0,2],[1,2],[2,2]]
   ];
 
+  // 大きいブロックほど手札に出やすくする(全消しを狙いやすくするための重み付け)。
+  // マス数が多いほど一度に複数ラインを消しやすく、盤面を空にしやすい。
+  var SHAPE_WEIGHTS = SHAPES.map(function(s) {
+    var n = s.length;
+    if (n <= 2) return 2;
+    if (n <= 4) return 3;
+    return 4; // 5マス以上(3x3含む)
+  });
+  var SHAPE_WEIGHT_TOTAL = SHAPE_WEIGHTS.reduce(function(a, b) { return a + b; }, 0);
+  function pickWeightedShapeIndex() {
+    var r = Math.random() * SHAPE_WEIGHT_TOTAL;
+    for (var i = 0; i < SHAPES.length; i++) {
+      r -= SHAPE_WEIGHTS[i];
+      if (r < 0) return i;
+    }
+    return SHAPES.length - 1;
+  }
+
   var SPECIALS = ['ice','bomb','lock','growth'];
   var SPECIAL_ICON = { ice:'🧊', bomb:'💣', lock:'🔒', growth:'🌱' };
 
@@ -474,6 +492,7 @@
   var grid = [];
   var hand = []; // array of {shape, color, cells:[{r,c,special}]}
   var score = 0;
+  var ALL_CLEAR_BONUS = 1000; // 盤面を完全に空にした時のボーナス(通常の必殺技ボーナス500より高い、最大の単発報酬)
   var highScore = 0;
   var combo = 0;
   var comboMax = 0;
@@ -533,7 +552,8 @@
     superReady: '効果音/chain-blaster-freesound/super_ready.mp3',
     superBlast: '効果音/chain-blaster-freesound/super_blast.mp3',
     gameover: '効果音/chain-blaster-freesound/gameover.mp3',
-    record: '効果音/chain-blaster-freesound/record.mp3'
+    record: '効果音/chain-blaster-freesound/record.mp3',
+    allClear: '効果音/chain-blaster-pixverse/beautiful-whoa.mp3'
   };
   // 再生のたびにcloneNodeで<audio>を増やし続けると、同時に生存できる音声要素数に
   // 上限があるブラウザ(特にiOS Safari)で上限を超えた時点から無音で再生失敗し続ける。
@@ -608,6 +628,10 @@
 
   function playRecordSound() {
     playClip('record', 0.7);
+  }
+
+  function playAllClearSound() {
+    playClip('allClear', 0.85);
   }
 
   function updateMuteUI() {
@@ -753,7 +777,7 @@
   function generateHand() {
     hand = [];
     for (var i = 0; i < 3; i++) {
-      var shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      var shape = SHAPES[pickWeightedShapeIndex()];
       hand.push(makePieceFromShape(shape));
     }
     renderHand();
@@ -1008,6 +1032,22 @@
     });
   }
 
+  function isBoardEmpty() {
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) if (grid[r][c] !== null) return false;
+    return true;
+  }
+
+  // 全消し判定と報酬(ボーナス点・ボイス・演出)をまとめた共通処理。
+  // 通常のライン消去(commitPlacement)だけでなく、必殺技「自由爆破」(onGridTap)など
+  // 盤面のセルを消すすべての経路の直後に呼ぶことで、全消しの見逃しを防ぐ。
+  function checkAllClearBonus() {
+    if (!isBoardEmpty()) return;
+    score += ALL_CLEAR_BONUS;
+    playAllClearSound();
+    flashScreen();
+    showToast('全消し！ビューティーホォー！ +' + ALL_CLEAR_BONUS);
+  }
+
   function commitPlacement(piece, row, col) {
     piece.cells.forEach(function(cd) {
       var rr = row + cd.r, cc = col + cd.c;
@@ -1027,6 +1067,7 @@
       combo += 1;
       if (combo > comboMax) comboMax = combo;
       handleComboMilestones();
+      checkAllClearBonus();
     } else {
       playPlaceSound();
       combo = 0;
@@ -1276,6 +1317,7 @@
     comboFiredAt = { 3:false, 5:false, 8:false };
     playSuperBlastSound();
     flashScreen();
+    checkAllClearBonus();
     updateHud();
     checkForGameOver();
   }
