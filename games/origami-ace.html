@@ -1188,7 +1188,7 @@
     try{ localStorage.setItem('origamiAceMuted', muted?'1':'0'); }catch(e){}
     ensureAudio();
     applyMuteUI();
-    if (muted) stopBgm(); else if (state==='playing') startBgm();
+    if (muted) stopBgm(); else if (state==='playing' || state==='paused') startBgm();
   });
   applyMuteUI();
 
