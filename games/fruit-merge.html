@@ -121,9 +121,22 @@
   // ---- audio ----
   var AUDIO_BASE = 'assets/audio/';
   var bgm = new Audio(AUDIO_BASE+'bgm.ogg'); bgm.loop = true; bgm.volume = 0.28;
-  var sfxDrop = new Audio(AUDIO_BASE+'drop.ogg'); sfxDrop.volume = 0.5;
-  var sfxMerge = new Audio(AUDIO_BASE+'merge.ogg'); sfxMerge.volume = 0.55;
-  var sfxOver = new Audio(AUDIO_BASE+'gameover.ogg'); sfxOver.volume = 0.6;
+  // 再生のたびにcloneNodeで<audio>を増やし続けると、同時に生存できる音声要素数に
+  // 上限があるブラウザ(特にiOS Safari)で上限を超えた時点から無音で再生失敗し続ける。
+  // そのため要素を使い捨てず、効果音ごとに固定数を使い回すプール方式にしている。
+  function makeSfxPool(src, volume, size){
+    size = size || 4;
+    var nodes = [];
+    for (var i = 0; i < size; i++) {
+      var a = new Audio(src);
+      a.volume = volume;
+      nodes.push(a);
+    }
+    return { nodes: nodes, idx: 0, volume: volume };
+  }
+  var sfxDrop = makeSfxPool(AUDIO_BASE+'drop.ogg', 0.5);
+  var sfxMerge = makeSfxPool(AUDIO_BASE+'merge.ogg', 0.55);
+  var sfxOver = makeSfxPool(AUDIO_BASE+'gameover.ogg', 0.6);
   var muted = false;
   var audioUnlocked = false;
   function unlockAudio(){
@@ -131,10 +144,13 @@
     audioUnlocked = true;
     if(!muted) bgm.play().catch(function(){});
   }
-  function playSfx(base, rate){
+  function playSfx(pool, rate){
     if(muted) return;
-    var n = base.cloneNode();
-    n.volume = base.volume;
+    var n = pool.nodes[pool.idx];
+    pool.idx = (pool.idx + 1) % pool.nodes.length;
+    n.pause();
+    n.currentTime = 0;
+    n.volume = pool.volume;
     n.playbackRate = rate || 1;
     n.play().catch(function(){});
   }

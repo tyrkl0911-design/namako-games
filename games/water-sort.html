@@ -415,12 +415,21 @@
   const bgm = new Audio('効果音/water-sort-freesound/bgm.mp3');
   bgm.loop = true;
   bgm.volume = 0.5;
-  const pourSfx = new Audio('効果音/water-sort-freesound/pour.mp3');
-  pourSfx.volume = 0.55;
-  const bottleCompleteSfx = new Audio('効果音/water-sort-freesound/bottle-complete.mp3');
-  bottleCompleteSfx.volume = 0.6;
-  const greatVoice = new Audio('効果音/water-sort-freesound/great-voice.mp3');
-  greatVoice.volume = 0.8;
+  // 再生のたびにcloneNodeで<audio>を増やし続けると、同時に生存できる音声要素数に
+  // 上限があるブラウザ(特にiOS Safari)で上限を超えた時点から無音で再生失敗し続ける。
+  // そのため要素を使い捨てず、効果音ごとに固定数を使い回すプール方式にしている。
+  function makeSfxPool(src, volume, size=4){
+    const nodes = [];
+    for(let i=0; i<size; i++){
+      const a = new Audio(src);
+      a.volume = volume;
+      nodes.push(a);
+    }
+    return { nodes, idx:0, volume };
+  }
+  const pourSfx = makeSfxPool('効果音/water-sort-freesound/pour.mp3', 0.55);
+  const bottleCompleteSfx = makeSfxPool('効果音/water-sort-freesound/bottle-complete.mp3', 0.6);
+  const greatVoice = makeSfxPool('効果音/water-sort-freesound/great-voice.mp3', 0.8);
 
   let soundEnabled = true;
   try{
@@ -428,12 +437,15 @@
     if(saved !== null) soundEnabled = saved === '1';
   }catch(e){}
 
-  function playSfx(audio){
+  function playSfx(pool){
     if(!soundEnabled) return;
     try{
-      const instance = audio.cloneNode();
-      instance.volume = audio.volume;
-      instance.play().catch(()=>{});
+      const n = pool.nodes[pool.idx];
+      pool.idx = (pool.idx + 1) % pool.nodes.length;
+      n.pause();
+      n.currentTime = 0;
+      n.volume = pool.volume;
+      n.play().catch(()=>{});
     }catch(e){}
   }
 
