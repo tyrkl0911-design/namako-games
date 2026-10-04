@@ -1100,6 +1100,12 @@
     window.location.href = 'breakout-select.html';
   });
 
+  // 画面ロック・タブ切替時にBGMが鳴り続けるのを防ぐ(ゲーム自体は一時停止させず、音だけ止めて戻ってきたら再開)
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden) stopBgm();
+    else if(!muted && state==='playing') startBgm();
+  });
+
   var muteBtn=document.getElementById('muteBtn');
   muteBtn.textContent = muted ? '🔇' : '🔊';
   muteBtn.setAttribute('aria-pressed', muted?'true':'false');

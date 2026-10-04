@@ -1192,6 +1192,15 @@
   });
   applyMuteUI();
 
+  // 画面ロック・タブ切替時にBGMが鳴り続けるのを防ぐ
+  // このゲームはtogglePause()がBGMを止めない設計(一時停止中もBGMは鳴り続ける)なので、
+  // 復帰条件は'playing'だけでなく'paused'も含める(でないと一時停止中に画面を消すとBGMが二度と戻らない)。
+  // ミュート中にstartBgmを呼ばないのはミュートボタンハンドラ・他ファイルと同じ条件。
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) stopBgm();
+    else if (!muted && (state==='playing' || state==='paused')) startBgm();
+  });
+
   // ---------- shapes ----------
   function playerPoints(px,py,hw,hh,flip){
     var s = flip ? -1 : 1;

@@ -935,6 +935,13 @@
   document.getElementById('resumePauseBtn').addEventListener('click', closePause);
   document.getElementById('pauseTitleBtn').addEventListener('click', pauseGoToTitle);
 
+  // 画面ロック・タブ切替時にBGMが鳴り続けるのを防ぐ(ゲーム自体は一時停止させず、音だけ止めて戻ってきたら再開)
+  let bgmWasPlaying = false;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { bgmWasPlaying = !bgm.paused; bgm.pause(); }
+    else if (bgmWasPlaying) { bgm.play().catch(()=>{}); }
+  });
+
   el.undoBtn.addEventListener('click', useUndo);
   el.shuffleBtn.addEventListener('click', useShuffle);
   document.getElementById('soundToggleBtn').addEventListener('click', () => {

@@ -179,6 +179,13 @@
     if(!started && (e.code==='Space' || e.code==='Enter')) startGame();
   });
 
+  // 画面ロック・タブ切替時にBGMが鳴り続けるのを防ぐ(ゲーム自体は一時停止させず、音だけ止めて戻ってきたら再開)
+  var bgmWasPlaying = false;
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) { bgmWasPlaying = !bgm.paused; bgm.pause(); }
+    else if (bgmWasPlaying) { bgm.play().catch(function(){}); }
+  });
+
   var engine, world;
   var score = 0;
   var aimX = PL + W/2;

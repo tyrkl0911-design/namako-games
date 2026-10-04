@@ -663,6 +663,12 @@
   muteBtn.addEventListener('click', function() { setMuted(!muted); });
   titleMuteBtn.addEventListener('click', function() { setMuted(!muted); });
   pauseBtn.addEventListener('click', togglePause);
+
+  // 画面ロック・タブ切替時にBGMが鳴り続けるのを防ぐ(タブが戻った時の自動再開はtryStartBgmのmuted/paused判定に任せる)
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) bgmAudio.pause();
+    else tryStartBgm();
+  });
   howToBtn.addEventListener('click', function() {
     pauseTitleEl.textContent = 'あそびかた';
     resumeBtn.textContent = 'とじる';

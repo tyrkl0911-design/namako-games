@@ -288,6 +288,12 @@
     if (muted) bgm.pause(); else if (audioUnlocked) bgm.play().catch(()=>{});
   });
 
+  // 画面ロック・タブ切替時にBGMが鳴り続けるのを防ぐ
+  document.addEventListener('visibilitychange', ()=>{
+    if (document.hidden) bgm.pause();
+    else if (!muted && audioUnlocked) bgm.play().catch(()=>{});
+  });
+
   // ---- Growth stages ----
   const STAGES = [
     { emoji:'🥚', size:26, name:'タマゴ(小)' },

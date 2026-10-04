@@ -428,6 +428,12 @@
     else if(state==='playing' && !player.dead) bgmAudio.play().catch(()=>{});
   });
 
+  // 画面ロック・タブ切替時にBGMが鳴り続けるのを防ぐ(resumeは曲の途中から、startBgmのように0秒目に巻き戻さない)
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) bgmAudio.pause();
+    else if(!muted && state==='playing' && !player.dead) bgmAudio.play().catch(()=>{});
+  });
+
   // ---------- Stage data ----------
   // segments: {x1,x2,type,elev} type: 'floor' or 'pit'. elev is the floor's
   // height relative to normal ground level (0 = normal, negative = a raised

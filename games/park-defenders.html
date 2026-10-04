@@ -918,6 +918,12 @@
   });
   applyMuteUI();
 
+  // 画面ロック・タブ切替時にBGMが鳴り続けるのを防ぐ
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) stopBgm();
+    else if (!muted && (state==='build'||state==='wave')) startBgm();
+  });
+
   // ================= tower & enemy config =================
   var TOWER_DEFS = {
     squirt:{ name:'水鉄砲やぐら', desc:'カケルの手作り。連射が得意', cost:50, upCost:[45,75], range:130, cd:0.35, dmg:[5,8,12], projSpeed:460, splash:0, colorKey:'kakeru' },
